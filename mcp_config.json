@@ -2,7 +2,7 @@
   "mcpServers": {
     "miot-skill": {
       "type": "stdio",
-      "command": "python",
+      "command": "/home/pi5/src/miot-skill/venv/bin/python",
       "args": ["-m", "miot_skill"],
       "env": {
         "MIOT_CACHE_DIR": "~/.miot-skill"

@@ -10,10 +10,7 @@
     },
     "miot-mcp-remote": {
       "type": "sse",
-      "url": "${XIAOZHI_REMOTE_URL}",
-      "headers": {
-        "Authorization": "Bearer ${XIAOZHI_TOKEN}"
-      },
+      "url": "${XIAOZHI_MCP_URL}",
       "disabled": true
     }
   }

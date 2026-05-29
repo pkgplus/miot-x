@@ -81,11 +81,21 @@ hermes mcp test miot
 ## 小智平台
 
 ```bash
-export XIAOZHI_REMOTE_URL=wss://your-endpoint
-export XIAOZHI_TOKEN=your-token
+export XIAOZHI_MCP_URL=wss://api.xiaozhi.me/mcp/?token=XXXXX
 ```
 
-修改 `mcp_config.json` 中 `miot-mcp-remote` 的 `disabled` 为 `false`。
+修改 `mcp_config.json`：
+```json
+{
+  "mcpServers": {
+    "miot-mcp-remote": {
+      "type": "sse",
+      "url": "${XIAOZHI_MCP_URL}",
+      "disabled": false
+    }
+  }
+}
+```
 
 ## 架构
 

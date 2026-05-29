@@ -1,0 +1,18 @@
+[Unit]
+Description=miot-x - Xiaozhi Bridge + HTTP MCP
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi5
+WorkingDirectory=/home/pi5/src/miot-x
+EnvironmentFile=/home/pi5/src/miot-x/.env
+ExecStart=/home/pi5/src/miot-x/venv/bin/python -m miot_x --xiaozhi --http-port 8300
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

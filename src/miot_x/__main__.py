@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-"""miot-skill — 小米米家 MCP Server。
+"""miot-x — 小米米家智能家居控制工具。
 
 用法:
-    python -m miot_skill                   # 默认 stdio 模式
-    python -m miot_skill --http-port 8300  # HTTP MCP server（给 Hermes）
-    python -m miot_skill --xiaozhi         # 小智 WebSocket 桥接
-    python -m miot_skill --http-port 8300 --xiaozhi  # 全部启用
+    python -m miot_x                   # 默认 stdio 模式
+    python -m miot_x --http-port 8300  # HTTP MCP server
+    python -m miot_x --xiaozhi         # 小智 WebSocket 桥接
+    python -m miot_x --http-port 8300 --xiaozhi  # 全部启用
 
 管理命令:
-    python -m miot_skill login     # 扫码登录
-    python -m miot_skill homes     # 重新选择家庭
-    python -m miot_skill test      # 测试连接
+    python -m miot_x login     # 扫码登录
+    python -m miot_x homes     # 重新选择家庭
+    python -m miot_x test      # 测试连接
 """
 import asyncio
 import re
@@ -18,17 +18,16 @@ import sys
 
 import qrcode
 
-from .server import main as server_main
+from .mcp import server_main
 
 
 async def login():
     """OAuth 扫码登录 — 终端显示二维码。"""
-    from .auth import MIoTAuth
+    from .lib.auth import MIoTAuth
 
     auth = MIoTAuth()
     auth_url, state = await auth.gen_oauth_url()
 
-    # 终端二维码
     qr = qrcode.QRCode()
     qr.add_data(auth_url)
     qr.print_ascii()
@@ -60,20 +59,19 @@ async def login():
 ✅ 登录成功!
    UID: {oauth_info.user_info.uid if oauth_info.user_info else 'N/A'}
    昵称: {oauth_info.user_info.nickname if oauth_info.user_info else 'N/A'}
-   Token 已保存: ~/.miot-skill/auth.json
+   Token 已保存: ~/.miot-x/auth.json
 """)
     except Exception as e:
         print(f"❌ 登录失败: {e}")
         return
 
-    # 登录成功后选择家庭
     await select_homes()
 
 
 async def select_homes():
     """选择要控制的家庭。"""
-    from .proxy import MiotProxy
-    from .config import save_selected_home_ids
+    from .lib.proxy import MiotProxy
+    from .lib.config import save_selected_home_ids
 
     print("🏠 正在获取家庭列表...")
     proxy = MiotProxy()
@@ -118,7 +116,7 @@ async def select_homes():
 
 async def test():
     """测试设备连接。"""
-    from .proxy import MiotProxy
+    from .lib.proxy import MiotProxy
 
     proxy = MiotProxy()
     await proxy.init()
@@ -132,7 +130,6 @@ CLI_COMMANDS = {"devices", "device", "on", "off", "toggle", "get", "set", "actio
 
 
 def main():
-    # 解析 --xiaozhi / --http-port 参数
     enable_xiaozhi = False
     http_port = 0
     http_host = "127.0.0.1"
@@ -168,7 +165,6 @@ def main():
         from .cli import cli_main
         cli_main(positional)
     else:
-        # 默认启动 server
         asyncio.run(server_main(
             http_port=http_port,
             http_host=http_host,

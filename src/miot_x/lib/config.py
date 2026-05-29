@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""miot-skill 配置常量。"""
+"""miot-x 配置常量。"""
 import json
 import os
 from pathlib import Path
 
 # 缓存目录
-CACHE_DIR = Path(os.getenv("MIOT_CACHE_DIR", os.path.expanduser("~/.miot-skill")))
+CACHE_DIR = Path(os.getenv("MIOT_CACHE_DIR", os.path.expanduser("~/.miot-x")))
 # Token + 家庭选择持久化文件
 AUTH_FILE = CACHE_DIR / "auth.json"
 # 设备/场景缓存

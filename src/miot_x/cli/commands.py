@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
-"""miot-skill CLI — 供 Agent 通过 Bash 调用的设备控制命令。
+"""miot-x CLI — 供 Agent 通过 Bash 调用的设备控制命令。
 
 用法:
-    python -m miot_skill devices [--room ROOM] [--refresh]
-    python -m miot_skill device <name>
-    python -m miot_skill on <name>
-    python -m miot_skill off <name>
-    python -m miot_skill toggle <name>
-    python -m miot_skill get <name> <siid> <piid>
-    python -m miot_skill set <name> <siid> <piid> <value>
-    python -m miot_skill action <name> <siid> <aiid> [--args ARG1,ARG2,...]
-    python -m miot_skill scenes
-    python -m miot_skill scene <name>
-    python -m miot_skill status
+    python -m miot_x devices [--room ROOM] [--refresh]
+    python -m miot_x device <name>
+    python -m miot_x on <name>
+    python -m miot_x off <name>
+    python -m miot_x toggle <name>
+    python -m miot_x get <name> <siid> <piid>
+    python -m miot_x set <name> <siid> <piid> <value>
+    python -m miot_x action <name> <siid> <aiid> [--args ARG1,ARG2,...]
+    python -m miot_x scenes
+    python -m miot_x scene <name>
+    python -m miot_x status
 """
 import argparse
 import asyncio
 import json
 import sys
 
-from .proxy import MiotProxy
+from ..lib.proxy import MiotProxy
 
 
 async def _get_proxy():
@@ -253,7 +253,7 @@ def _parse_value(v):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(prog="miot-skill", description="小米米家智能家居 CLI")
+    parser = argparse.ArgumentParser(prog="miot-x", description="小米米家智能家居 CLI")
     sub = parser.add_subparsers(dest="command")
 
     p_devices = sub.add_parser("devices", help="列出所有设备")
@@ -299,9 +299,9 @@ def build_parser():
     return parser
 
 
-def cli_main():
+def cli_main(argv=None):
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     dispatch = {
         "devices": cmd_devices,

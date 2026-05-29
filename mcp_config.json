@@ -7,11 +7,6 @@
       "env": {
         "MIOT_CACHE_DIR": "~/.miot-mcp"
       }
-    },
-    "miot-skill-remote": {
-      "type": "sse",
-      "url": "${XIAOZHI_MCP_URL}",
-      "disabled": false
     }
   }
 }

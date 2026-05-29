@@ -12,6 +12,8 @@ dependencies = [
     "fastmcp>=2.11",
     "aiohttp>=3.12",
     "qrcode>=8.0",
+    "websockets>=11.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.scripts]

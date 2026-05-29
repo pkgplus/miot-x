@@ -80,35 +80,44 @@ hermes mcp test miot
 
 ## 小智平台
 
+通过 `mcp_pipe.py` 将本地 MCP Server 桥接到小智 WebSocket：
+
 ```bash
-export XIAOZHI_MCP_URL=wss://api.xiaozhi.me/mcp/?token=XXXXX
+# 设置小智 MCP 端点
+export MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=XXXXX
+
+# 启动桥接（自动读取 mcp_config.json 中已启用的 server）
+python mcp_pipe.py
+
+# 或指定单个 server
+python mcp_pipe.py miot-skill
 ```
 
-修改 `mcp_config.json`：
-```json
-{
-  "mcpServers": {
-    "miot-skill-remote": {
-      "type": "sse",
-      "url": "${XIAOZHI_MCP_URL}",
-      "disabled": false
-    }
-  }
-}
-```
+特性：
+- WebSocket 断线自动重连（指数退避）
+- 支持 stdio / sse / http 三种传输类型
+- 多 server 并行桥接
 
 ## 架构
 
 ```
-Hermes / 小智 / Claude
-        │ MCP stdio
+   ┌─────────────────┐
+   │  小智平台         │  WebSocket
+   │  api.xiaozhi.me  │
+   └────┬────────────┘
+        │ ws://
    ┌────▼────────────┐
-   │  miot_skill        │  11 工具
+   │  mcp_pipe.py     │  WebSocket ↔ stdio 桥接
+   │                  │  自动重连 + 多 server
+   └────┬────────────┘
+        │ stdio
+   ┌────▼────────────┐
+   │  miot_skill      │  11 工具
    │  server.py       │  FastMCP
    └────┬────────────┘
         │
    ┌────▼────────────┐
-   │  miot_skill        │  token 刷新
+   │  miot_skill      │  token 刷新
    │  proxy.py        │  设备控制
    └────┬────────────┘
         │

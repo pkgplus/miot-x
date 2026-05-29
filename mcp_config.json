@@ -1,14 +1,14 @@
 {
   "mcpServers": {
-    "miot-mcp": {
+    "miot-skill": {
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "miot_mcp"],
+      "args": ["-m", "miot_skill"],
       "env": {
-        "MIOT_CACHE_DIR": "~/.miot-mcp"
+        "MIOT_CACHE_DIR": "~/.miot-skill"
       }
     },
-    "miot-mcp-remote": {
+    "miot-skill-remote": {
       "type": "sse",
       "url": "${XIAOZHI_MCP_URL}",
       "disabled": true

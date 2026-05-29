@@ -42,7 +42,7 @@ class MiotProxy:
         self._oauth_info = MIoTAuth.load()
         if not self._oauth_info:
             raise RuntimeError(
-                "未登录，请先运行: python -m miot_mcp.auth"
+                "未登录，请先运行: python -m miot_skill login"
             )
 
         self._client = MIoTClient(

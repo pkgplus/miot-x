@@ -1,11 +1,11 @@
 #!/bin/bash
-# miot-mcp 首次扫码登录
+# miot-skill 首次扫码登录
 # 用法: ./scripts/login.sh
 
 set -e
 cd "$(dirname "$0")/.."
 
-echo "🔐 miot-mcp 首次登录"
+echo "🔐 miot-skill 首次登录"
 echo "======================"
 echo ""
 
@@ -14,4 +14,4 @@ source venv/bin/activate 2>/dev/null || {
     exit 1
 }
 
-python -m miot_mcp login
+python -m miot_skill login

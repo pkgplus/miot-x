@@ -1,4 +1,4 @@
-# miot-mcp
+# miot-skill
 
 > 小米米家智能家居 MCP Server — 基于小米官方 [miot_kit](https://github.com/XiaoMi/xiaomi-miloco) SDK，纯 Python，ARM64 可用，零 GPU 依赖。
 
@@ -22,8 +22,8 @@ git clone --depth 1 https://github.com/XiaoMi/xiaomi-miloco.git ~/src/xiaomi-mil
 ### 2. 安装
 
 ```bash
-git clone https://github.com/pkgplus/miot-mcp.git
-cd miot-mcp
+git clone https://github.com/pkgplus/miot-skill.git
+cd miot-skill
 python3 -m venv venv && source venv/bin/activate
 pip install -e ~/src/xiaomi-miloco/miot_kit
 pip install -e .
@@ -32,7 +32,7 @@ pip install -e .
 ### 3. 扫码登录
 
 ```bash
-python -m miot_mcp login
+python -m miot_skill login
 ```
 
 终端会显示二维码，用手机米家 App 扫码授权。授权后浏览器会跳转到 `127.0.0.1`（打不开是正常的），把地址栏的完整 URL 粘贴回终端即可。
@@ -41,10 +41,10 @@ python -m miot_mcp login
 
 ```bash
 # 测试连接
-python -m miot_mcp test
+python -m miot_skill test
 
 # 启动 MCP 服务
-python -m miot_mcp
+python -m miot_skill
 ```
 
 ## MCP 工具
@@ -69,8 +69,8 @@ python -m miot_mcp
 # ~/.hermes/config.yaml
 mcp_servers:
   miot:
-    command: /path/to/miot-mcp/venv/bin/python
-    args: [-m, miot_mcp]
+    command: /path/to/miot-skill/venv/bin/python
+    args: [-m, miot_skill]
     timeout: 30
 ```
 
@@ -88,7 +88,7 @@ export XIAOZHI_MCP_URL=wss://api.xiaozhi.me/mcp/?token=XXXXX
 ```json
 {
   "mcpServers": {
-    "miot-mcp-remote": {
+    "miot-skill-remote": {
       "type": "sse",
       "url": "${XIAOZHI_MCP_URL}",
       "disabled": false
@@ -103,12 +103,12 @@ export XIAOZHI_MCP_URL=wss://api.xiaozhi.me/mcp/?token=XXXXX
 Hermes / 小智 / Claude
         │ MCP stdio
    ┌────▼────────────┐
-   │  miot_mcp        │  11 工具
+   │  miot_skill        │  11 工具
    │  server.py       │  FastMCP
    └────┬────────────┘
         │
    ┌────▼────────────┐
-   │  miot_mcp        │  token 刷新
+   │  miot_skill        │  token 刷新
    │  proxy.py        │  设备控制
    └────┬────────────┘
         │

@@ -20,7 +20,7 @@ _devices: dict[str, MIoTDeviceInfo] = {}
 
 # FastMCP 实例
 mcp = FastMCP(
-    name="miot-mcp",
+    name="miot-skill",
     instructions="Xiaomi Mijia Smart Home MCP Server — 控制米家智能设备",
 )
 

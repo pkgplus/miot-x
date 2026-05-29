@@ -77,7 +77,7 @@ class XiaozhiConfig:
         if typ in ("sse", "http", "streamablehttp"):
             url = entry.get("url", "")
             url = url.replace("${XIAOZHI_MCP_URL}", os.getenv("XIAOZHI_MCP_URL", ""))
-            cmd = [os.sys.executable, "-m", "miot_mcp.server"]
+            cmd = [os.sys.executable, "-m", "miot_skill.server"]
             return cmd, env
 
         raise RuntimeError(f"不支持的 server 类型: {typ}")

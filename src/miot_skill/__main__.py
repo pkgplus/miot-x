@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""miot-mcp — 小米米家 MCP Server。
+"""miot-skill — 小米米家 MCP Server。
 
 用法:
-    python -m miot_mcp           # 启动 MCP stdio server
-    python -m miot_mcp login     # 扫码登录（终端显示二维码）
-    python -m miot_mcp test      # 测试连接
+    python -m miot_skill           # 启动 MCP stdio server
+    python -m miot_skill login     # 扫码登录（终端显示二维码）
+    python -m miot_skill test      # 测试连接
 """
 import asyncio
 import re
@@ -54,7 +54,7 @@ async def login():
 ✅ 登录成功!
    UID: {oauth_info.user_info.uid if oauth_info.user_info else 'N/A'}
    昵称: {oauth_info.user_info.nickname if oauth_info.user_info else 'N/A'}
-   Token 已保存: ~/.miot-mcp/auth.json
+   Token 已保存: ~/.miot-skill/auth.json
 """)
     except Exception as e:
         print(f"❌ 登录失败: {e}")

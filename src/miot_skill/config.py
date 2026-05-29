@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""miot-mcp 配置常量。"""
+"""miot-skill 配置常量。"""
 import os
 from pathlib import Path
 

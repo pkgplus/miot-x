@@ -1,11 +1,19 @@
 # -*- coding: utf-8 -*-
-"""MCP Server — FastMCP stdio 入口，注册米家设备控制工具。"""
+"""MCP Server — FastMCP 入口，注册米家设备控制工具。
+
+支持三种模式（可组合）：
+    stdio       — 默认，MCP stdio 协议
+    --http-port — 启动 HTTP MCP server（给 Hermes 等本地客户端）
+    --xiaozhi   — 启动小智 WebSocket 桥接
+"""
 import asyncio
 import json
 import logging
+import os
 import sys
 from typing import Optional
 
+import websockets
 from fastmcp import FastMCP
 from miot.types import MIoTDeviceInfo
 
@@ -310,21 +318,163 @@ async def get_service_status() -> dict:
         return {"connected": False, "error": str(e)}
 
 
+# ── 工具注册表（用于小智桥接） ─────────────────────
+
+
+async def _get_tools_registry() -> dict:
+    """返回 {tool_name: async_function} 映射。"""
+    tools = await mcp.list_tools()
+    return {t.name: t.fn for t in tools}
+
+
+async def _handle_xiaozhi_message(msg_raw: str, tools_registry: dict) -> str:
+    """处理来自小智 WebSocket 的 MCP JSON-RPC 消息。
+
+    支持的方法：
+        - initialize, notifications/initialized
+        - tools/list
+        - tools/call
+    """
+    try:
+        msg = json.loads(msg_raw)
+    except json.JSONDecodeError:
+        return json.dumps({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None})
+
+    req_id = msg.get("id")
+    method = msg.get("method", "")
+    params = msg.get("params", {})
+
+    if method == "initialize":
+        return json.dumps({
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "miot-skill", "version": "1.0.0"},
+            },
+        })
+
+    if method == "notifications/initialized":
+        return json.dumps({"jsonrpc": "2.0", "id": req_id, "result": {}})
+
+    if method == "tools/list":
+        tools = [
+            {"name": name, "description": getattr(fn, "__doc__", "") or "",
+             "inputSchema": {"type": "object", "properties": {}}}
+            for name, fn in tools_registry.items()
+        ]
+        return json.dumps({"jsonrpc": "2.0", "id": req_id, "result": {"tools": tools}})
+
+    if method == "tools/call":
+        tool_name = params.get("name", "")
+        arguments = params.get("arguments", {})
+        fn = tools_registry.get(tool_name)
+        if not fn:
+            return json.dumps({
+                "jsonrpc": "2.0", "id": req_id,
+                "error": {"code": -32601, "message": f"Tool not found: {tool_name}"},
+            })
+        try:
+            result = await fn(**arguments)
+            return json.dumps({
+                "jsonrpc": "2.0", "id": req_id,
+                "result": {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]},
+            })
+        except Exception as e:
+            return json.dumps({
+                "jsonrpc": "2.0", "id": req_id,
+                "error": {"code": -32603, "message": str(e)},
+            })
+
+    # 未知方法
+    return json.dumps({
+        "jsonrpc": "2.0", "id": req_id,
+        "error": {"code": -32601, "message": f"Method not found: {method}"},
+    })
+
+
+# ── 小智 WebSocket 桥接 ────────────────────────────
+
+async def xiaozhi_bridge():
+    """连接小智平台 WebSocket，双向桥接 MCP 消息。
+
+    环境变量:
+        MCP_ENDPOINT 或 XIAOZHI_MCP_URL — 小智 WebSocket 端点
+    """
+    url = os.environ.get("MCP_ENDPOINT") or os.environ.get("XIAOZHI_MCP_URL")
+    if not url:
+        _LOGGER.warning("小智桥接: 未设置 MCP_ENDPOINT，跳过")
+        return
+
+    tools_registry = await _get_tools_registry()
+    _LOGGER.info("小智桥接: 已注册 %d 个工具，连接 %s...", len(tools_registry), url[:60])
+
+    backoff = 1
+    while True:
+        try:
+            if backoff > 1:
+                _LOGGER.info("小智桥接: 等待 %ds 后重连...", backoff)
+                await asyncio.sleep(backoff)
+
+            async with websockets.connect(url) as ws:
+                _LOGGER.info("小智桥接: 已连接")
+                backoff = 1
+                async for raw_msg in ws:
+                    if isinstance(raw_msg, bytes):
+                        raw_msg = raw_msg.decode("utf-8")
+                    resp = await _handle_xiaozhi_message(raw_msg, tools_registry)
+                    await ws.send(resp)
+        except Exception as e:
+            _LOGGER.warning("小智桥接: 连接断开 (%s)，将重连...", e)
+            backoff = min(backoff * 2, 600)
+
+
 # ── 入口 ───────────────────────────────────────────
 
-async def main():
+async def main(
+    http_port: int = 0,
+    http_host: str = "127.0.0.1",
+    enable_xiaozhi: bool = False,
+):
+    """启动 MCP server。
+
+    Args:
+        http_port: HTTP MCP server 端口（0=不启动）。
+        http_host: HTTP server 绑定地址。
+        enable_xiaozhi: 是否启用小智 WebSocket 桥接。
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         stream=sys.stderr,
     )
+
     try:
         await _ensure_proxy()
         _LOGGER.info("MCP server 启动中...")
     except Exception as e:
         _LOGGER.warning("设备连接失败（将以离线模式启动）: %s", e)
 
-    await mcp.run_stdio_async()
+    tasks = []
+
+    if enable_xiaozhi:
+        tasks.append(xiaozhi_bridge())
+
+    if http_port > 0:
+        _LOGGER.info("HTTP MCP server: http://%s:%d", http_host, http_port)
+        tasks.append(mcp.run_http_async(
+            host=http_host,
+            port=http_port,
+            transport="http",
+            show_banner=False,
+        ))
+
+    if tasks:
+        await asyncio.gather(*tasks)
+    else:
+        # 默认 stdio 模式
+        await mcp.run_stdio_async()
 
 
 if __name__ == "__main__":

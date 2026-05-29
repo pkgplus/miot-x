@@ -2,8 +2,13 @@
 """miot-skill — 小米米家 MCP Server。
 
 用法:
-    python -m miot_skill           # 启动 MCP stdio server
-    python -m miot_skill login     # 扫码登录（终端显示二维码）
+    python -m miot_skill                   # 默认 stdio 模式
+    python -m miot_skill --http-port 8300  # HTTP MCP server（给 Hermes）
+    python -m miot_skill --xiaozhi         # 小智 WebSocket 桥接
+    python -m miot_skill --http-port 8300 --xiaozhi  # 全部启用
+
+管理命令:
+    python -m miot_skill login     # 扫码登录
     python -m miot_skill homes     # 重新选择家庭
     python -m miot_skill test      # 测试连接
 """
@@ -127,7 +132,32 @@ CLI_COMMANDS = {"devices", "device", "on", "off", "toggle", "get", "set", "actio
 
 
 def main():
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
+    # 解析 --xiaozhi / --http-port 参数
+    enable_xiaozhi = False
+    http_port = 0
+    http_host = "127.0.0.1"
+    positional = []
+
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--xiaozhi":
+            enable_xiaozhi = True
+        elif a == "--http-port":
+            i += 1
+            if i < len(args):
+                http_port = int(args[i])
+        elif a == "--http-host":
+            i += 1
+            if i < len(args):
+                http_host = args[i]
+        else:
+            positional.append(a)
+        i += 1
+
+    cmd = positional[0] if positional else "run"
+
     if cmd == "login":
         asyncio.run(login())
     elif cmd == "test":
@@ -136,9 +166,14 @@ def main():
         asyncio.run(select_homes())
     elif cmd in CLI_COMMANDS:
         from .cli import cli_main
-        cli_main()
+        cli_main(positional)
     else:
-        asyncio.run(server_main())
+        # 默认启动 server
+        asyncio.run(server_main(
+            http_port=http_port,
+            http_host=http_host,
+            enable_xiaozhi=enable_xiaozhi,
+        ))
 
 
 if __name__ == "__main__":

@@ -3,443 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>miot-x 智能家居</title>
+    <title>miot-x</title>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        :root {
-            --bg-base: #F7F7F7;
-            --bg-card: rgba(255,255,255,0.88);
-            --bg-glass: rgba(255,255,255,0.75);
-            --bg-glass-deep: rgba(255,255,255,0.85);
-            --text-primary: #1A1A1A;
-            --text-secondary: #666666;
-            --text-tertiary: #999999;
-            --accent-green: #4CAF50;
-            --accent-gray: #BDBDBD;
-            --accent-orange: #FF9800;
-            --accent-blue: #2196F3;
-            --shadow-soft: 0 2px 16px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.02);
-            --shadow-hover: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
-            --radius: 14px;
-            --radius-lg: 18px;
-            --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
-            background: var(--bg-base);
-            color: var(--text-primary);
-            line-height: 1.6;
-            letter-spacing: 0.01em;
-            min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        [x-cloak] { display: none !important; }
-
-        /* Glass effect */
-        .glass { background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        .glass-deep { background: var(--bg-glass-deep); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 0.5px solid rgba(255,255,255,0.6); }
-
-        /* Card */
-        .card {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-soft);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            transition: transform var(--transition), box-shadow var(--transition);
-        }
-        .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
-        .card-static { background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow-soft); backdrop-filter: blur(12px); }
-
-        /* Header */
-        .header {
-            position: sticky; top: 0; z-index: 100;
-            padding: 16px 20px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-bottom: 0.5px solid rgba(0,0,0,0.04);
-        }
-
-        /* Bottom nav (mobile) */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
-            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border-top: 0.5px solid rgba(0,0,0,0.04);
-            display: flex; justify-content: space-around;
-        }
-        .nav-item {
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
-            padding: 6px 16px; border-radius: 12px; cursor: pointer;
-            transition: background var(--transition);
-            min-width: 64px;
-        }
-        .nav-item:hover { background: rgba(0,0,0,0.03); }
-        .nav-item.active { color: var(--text-primary); }
-        .nav-item:not(.active) { color: var(--text-tertiary); }
-        .nav-item svg { width: 22px; height: 22px; }
-        .nav-label { font-size: 10px; font-weight: 500; }
-
-        /* Layout */
-        .container { max-width: 1280px; margin: 0 auto; padding: 20px; padding-bottom: 100px; }
-        @media (min-width: 768px) { .container { padding: 24px 32px; padding-bottom: 32px; } .bottom-nav { display: none; } }
-
-        /* Grid */
-        .device-grid {
-            display: grid; gap: 16px;
-            grid-template-columns: 1fr;
-        }
-        @media (min-width: 640px) { .device-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; } }
-        @media (min-width: 1024px) { .device-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
-
-        /* Device card */
-        .device-card { padding: 20px; cursor: pointer; position: relative; overflow: hidden; }
-        .device-card .status-dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            box-shadow: 0 0 6px currentColor;
-        }
-        .device-card .status-dot.online { background: var(--accent-green); color: var(--accent-green); }
-        .device-card .status-dot.offline { background: var(--accent-gray); color: transparent; }
-
-        /* Toggle switch */
-        .toggle {
-            width: 48px; height: 28px; border-radius: 14px;
-            background: #E0E0E0; position: relative; cursor: pointer;
-            transition: background var(--transition);
-        }
-        .toggle.on { background: var(--accent-green); }
-        .toggle .knob {
-            width: 22px; height: 22px; border-radius: 50%;
-            background: white; position: absolute; top: 3px; left: 3px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .toggle.on .knob { transform: translateX(20px); }
-
-        /* Range slider */
-        input[type="range"] {
-            -webkit-appearance: none; width: 100%; height: 4px;
-            border-radius: 2px; background: #E8E8E8; outline: none;
-            transition: background var(--transition);
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 20px; height: 20px;
-            border-radius: 50%; background: white; cursor: pointer;
-            box-shadow: 0 1px 6px rgba(0,0,0,0.2);
-            transition: transform 0.2s ease;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
-        input[type="range"]:active::-webkit-slider-thumb { transform: scale(0.95); }
-
-        /* Section title */
-        .section-title { font-size: 13px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
-
-        /* Fade transitions */
-        .fade-enter { opacity: 0; transform: translateY(8px); }
-        .fade-active { opacity: 1; transform: translateY(0); transition: all 0.25s ease; }
-
-        /* Login */
-        .login-bg {
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        }
-        .login-card { width: 100%; max-width: 380px; padding: 40px; text-align: center; }
-
-        /* Button */
-        .btn-primary {
-            width: 100%; padding: 14px; border: none; border-radius: 12px;
-            background: var(--text-primary); color: white; font-size: 15px; font-weight: 500;
-            cursor: pointer; transition: all var(--transition);
-        }
-        .btn-primary:hover { background: #333; transform: translateY(-1px); }
-        .btn-primary:active { transform: translateY(0); }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-        /* Scene card */
-        .scene-card {
-            padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
-        }
-        .scene-btn {
-            padding: 8px 16px; border: none; border-radius: 10px;
-            background: rgba(33,150,243,0.08); color: var(--accent-blue);
-            font-size: 13px; font-weight: 500; cursor: pointer;
-            transition: all var(--transition);
-        }
-        .scene-btn:hover { background: rgba(33,150,243,0.15); }
-
-        /* Property row */
-        .prop-row {
-            padding: 14px 0; display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 0.5px solid rgba(0,0,0,0.04);
-        }
-        .prop-row:last-child { border-bottom: none; }
-
-        /* Back button */
-        .back-btn {
-            display: inline-flex; align-items: center; gap: 4px;
-            font-size: 14px; color: var(--text-secondary); cursor: pointer;
-            padding: 8px 0; margin-bottom: 16px;
-            transition: color var(--transition);
-        }
-        .back-btn:hover { color: var(--text-primary); }
-
-        /* Data value */
-        .data-value {
-            font-family: "SF Mono", "Menlo", "Monaco", monospace;
-            font-size: 13px; color: var(--text-secondary);
-            background: rgba(0,0,0,0.03); padding: 3px 8px; border-radius: 6px;
-        }
-
-        /* Manual control inputs */
-        .input-sm {
-            width: 100%; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 10px; font-size: 14px; outline: none;
-            transition: border-color var(--transition);
-        }
-        .input-sm:focus { border-color: rgba(0,0,0,0.2); }
-    </style>
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div x-data="app()" x-init="init()" x-cloak>
 
-    <!-- Login View -->
-    <div x-show="!loggedIn" class="login-bg">
-        <div class="card-static login-card">
-            <div style="margin-bottom: 32px;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 16px;">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-                <h1 style="font-size: 22px; font-weight: 600; margin-bottom: 8px;">智能家居控制</h1>
-                <p style="font-size: 14px; color: var(--text-secondary);">使用小米账号登录以控制你的米家设备</p>
+    <!-- ===== LOGIN ===== -->
+    <div x-show="!loggedIn" class="login-page">
+        <div class="login-card">
+            <div class="login-icon">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
-            <button @click="startLogin()" :disabled="loginLoading" class="btn-primary">
+            <h1 class="login-title">智能家居</h1>
+            <p class="login-subtitle">使用小米账号登录以控制你的设备</p>
+            <button @click="startLogin()" :disabled="loginLoading" class="btn-login">
                 <span x-show="!loginLoading">登录小米账号</span>
-                <span x-show="loginLoading">等待授权中...</span>
+                <span x-show="loginLoading">等待授权...</span>
             </button>
-            <div x-show="manualMode" style="margin-top: 20px; text-align: left;">
-                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">请粘贴浏览器跳转后的完整 URL：</p>
-                <input x-model="callbackUrl" type="text" placeholder="https://127.0.0.1/?code=..." class="input-sm" style="margin-bottom: 10px;">
-                <button @click="submitCallback()" class="btn-primary" style="background: var(--accent-blue);">提交授权码</button>
+            <div x-show="manualMode" class="manual-input">
+                <input x-model="callbackUrl" type="text" placeholder="粘贴回调 URL..." class="input-field">
+                <button @click="submitCallback()" class="btn-submit">提交</button>
             </div>
-            <p x-show="loginError" x-text="loginError" style="margin-top: 12px; font-size: 13px; color: var(--accent-orange);"></p>
+            <p x-show="loginError" x-text="loginError" class="login-error"></p>
         </div>
     </div>
 
-    <!-- Main App -->
-    <div x-show="loggedIn">
-        <!-- Header (Desktop) -->
-        <div class="header" style="display: none;" x-ref="desktopHeader">
-            <div style="max-width: 1280px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
-                <h1 style="font-size: 18px; font-weight: 600;" @click="currentDevice=null">miot-x</h1>
-                <div style="display: flex; align-items: center; gap: 24px;">
-                    <button @click="tab='devices'; currentDevice=null" :style="tab==='devices' ? 'color: var(--text-primary)' : 'color: var(--text-tertiary)'" style="background: none; border: none; font-size: 14px; font-weight: 500; cursor: pointer;">设备</button>
-                    <button @click="tab='scenes'; currentDevice=null" :style="tab==='scenes' ? 'color: var(--text-primary)' : 'color: var(--text-tertiary)'" style="background: none; border: none; font-size: 14px; font-weight: 500; cursor: pointer;">场景</button>
-                    <button @click="tab='settings'; currentDevice=null" :style="tab==='settings' ? 'color: var(--text-primary)' : 'color: var(--text-tertiary)'" style="background: none; border: none; font-size: 14px; font-weight: 500; cursor: pointer;">设置</button>
-                    <button @click="logout()" style="background: none; border: none; font-size: 13px; color: var(--text-tertiary); cursor: pointer;">登出</button>
+    <!-- ===== MAIN APP ===== -->
+    <div x-show="loggedIn" class="app-layout">
+
+        <!-- Sidebar (Desktop) -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">miot-x</div>
+            <nav class="sidebar-nav">
+                <a @click="navigate('home')" :class="tab==='home' && 'active'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    <span>家庭</span>
+                </a>
+                <a @click="navigate('devices')" :class="tab==='devices' && 'active'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                    <span>设备</span>
+                </a>
+                <a @click="navigate('scenes')" :class="tab==='scenes' && 'active'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span>场景</span>
+                </a>
+                <a @click="navigate('settings')" :class="tab==='settings' && 'active'">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span>设置</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- === HOME TAB === -->
+            <section x-show="tab==='home' && !currentDevice">
+                <h1 class="page-title">家庭</h1>
+                <div class="room-tabs">
+                    <button @click="roomFilter=''" :class="!roomFilter && 'active'" class="room-tab">全部</button>
+                    <template x-for="room in rooms" :key="room">
+                        <button @click="roomFilter=room" :class="roomFilter===room && 'active'" class="room-tab" x-text="room"></button>
+                    </template>
                 </div>
-            </div>
-        </div>
-
-        <div class="container">
-            <!-- Device Detail -->
-            <div x-show="currentDevice" x-transition:enter="fade-enter" x-transition:enter-start="fade-enter" x-transition:enter-end="fade-active">
-                <div class="back-btn" @click="currentDevice=null">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    返回
-                </div>
-
-                <div class="card-static" style="padding: 24px; margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <h2 style="font-size: 20px; font-weight: 600;" x-text="currentDevice?.name"></h2>
-                            <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;" x-text="currentDevice?.model"></p>
-                        </div>
-                        <span style="font-size: 12px; padding: 4px 10px; border-radius: 8px;"
-                              :style="currentDevice?.online ? 'background: rgba(76,175,80,0.1); color: var(--accent-green)' : 'background: rgba(0,0,0,0.04); color: var(--accent-gray)'"
-                              x-text="currentDevice?.online ? '在线' : '离线'"></span>
-                    </div>
-                </div>
-
-                <!-- SPEC Controls -->
-                <template x-if="currentDevice?.spec">
-                    <div>
-                        <template x-for="service in currentDevice.spec.services" :key="service.iid">
-                            <div class="card-static" style="padding: 20px 24px; margin-bottom: 12px;">
-                                <p class="section-title" x-text="service.name"></p>
-                                <div>
-                                    <template x-for="prop in service.properties.filter(p => p.access && p.access.includes('write'))" :key="service.iid + '-' + prop.iid">
-                                        <div class="prop-row">
-                                            <span style="font-size: 14px;" x-text="prop.name"></span>
-                                            <div style="display: flex; align-items: center; gap: 10px;">
-                                                <!-- Bool -->
-                                                <template x-if="prop.format === 'bool'">
-                                                    <div class="toggle" :class="propValues[service.iid + '-' + prop.iid] ? 'on' : ''"
-                                                         @click="toggleProp(service.iid, prop.iid)">
-                                                        <div class="knob"></div>
-                                                    </div>
-                                                </template>
-                                                <!-- Range slider -->
-                                                <template x-if="prop.format !== 'bool' && prop.range">
-                                                    <div style="display: flex; align-items: center; gap: 10px; min-width: 160px;">
-                                                        <input type="range" :min="prop.range[0]" :max="prop.range[1]" :step="prop.range[2] || 1"
-                                                               :value="propValues[service.iid + '-' + prop.iid] || 0"
-                                                               @change="setPropValue(service.iid, prop.iid, Number($event.target.value))">
-                                                        <span class="data-value" x-text="propValues[service.iid + '-' + prop.iid] ?? '-'"></span>
-                                                    </div>
-                                                </template>
-                                                <!-- Value list -->
-                                                <template x-if="prop.value_list && prop.format !== 'bool'">
-                                                    <select @change="setPropValue(service.iid, prop.iid, Number($event.target.value))"
-                                                            style="padding: 6px 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; font-size: 13px; outline: none;">
-                                                        <template x-for="v in prop.value_list" :key="v.value">
-                                                            <option :value="v.value" :selected="propValues[service.iid + '-' + prop.iid] == v.value"
-                                                                    x-text="v.description"></option>
-                                                        </template>
-                                                    </select>
-                                                </template>
-                                                <!-- Number input -->
-                                                <template x-if="prop.format !== 'bool' && !prop.range && !prop.value_list">
-                                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                                        <input type="number" class="input-sm" style="width: 80px; padding: 6px 10px;"
-                                                               :value="propValues[service.iid + '-' + prop.iid]"
-                                                               @keydown.enter="setPropValue(service.iid, prop.iid, Number($event.target.value))">
-                                                        <button @click="setPropValue(service.iid, prop.iid, Number($el.previousElementSibling.value))"
-                                                                class="scene-btn">设置</button>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </template>
-                                    <!-- Read-only -->
-                                    <template x-for="prop in service.properties.filter(p => p.access && !p.access.includes('write'))" :key="service.iid + '-' + prop.iid">
-                                        <div class="prop-row">
-                                            <span style="font-size: 14px; color: var(--text-secondary);" x-text="prop.name"></span>
-                                            <span class="data-value" x-text="propValues[service.iid + '-' + prop.iid] ?? '-'"></span>
-                                        </div>
-                                    </template>
-                                </div>
+                <div class="tile-grid">
+                    <template x-for="dev in filteredDevices" :key="dev.did">
+                        <div class="device-tile" :class="dev.online ? deviceColor(dev) : 'tile-off'" @click="openDevice(dev)">
+                            <div class="tile-header">
+                                <span class="tile-icon" x-html="deviceIcon(dev)"></span>
+                                <div x-show="isToggleable(dev)" @click.stop="quickToggle(dev)" class="tile-toggle" :class="dev._on && 'on'"></div>
                             </div>
-                        </template>
-                    </div>
-                </template>
-
-                <!-- Fallback: no SPEC -->
-                <div x-show="currentDevice && !currentDevice.spec && currentDevice.did">
-                    <div class="card-static" style="padding: 24px; margin-bottom: 12px;">
-                        <p class="section-title">快捷控制</p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <button @click="setPropValue(2, 1, true)" style="padding: 16px; border: none; border-radius: 12px; background: rgba(76,175,80,0.08); color: var(--accent-green); font-size: 15px; font-weight: 500; cursor: pointer;">打开</button>
-                            <button @click="setPropValue(2, 1, false)" style="padding: 16px; border: none; border-radius: 12px; background: rgba(0,0,0,0.04); color: var(--text-secondary); font-size: 15px; font-weight: 500; cursor: pointer;">关闭</button>
-                        </div>
-                    </div>
-                    <div class="card-static" style="padding: 24px;">
-                        <p class="section-title">手动控制</p>
-                        <div x-data="{ siid: 2, piid: 1, value: '', rsiid: 2, rpiid: 1, result: '' }">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; align-items: end; margin-bottom: 12px;">
-                                <div><label style="font-size: 11px; color: var(--text-tertiary);">siid</label><input x-model.number="siid" type="number" class="input-sm"></div>
-                                <div><label style="font-size: 11px; color: var(--text-tertiary);">piid</label><input x-model.number="piid" type="number" class="input-sm"></div>
-                                <div><label style="font-size: 11px; color: var(--text-tertiary);">value</label><input x-model="value" type="text" placeholder="true/false/数字" class="input-sm"></div>
-                                <button @click="let v = value==='true'?true:value==='false'?false:isNaN(value)?value:Number(value); $dispatch('set-prop',{siid,piid,value:v})"
-                                        class="scene-btn" style="height: 40px;">设置</button>
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: end;">
-                                <div><label style="font-size: 11px; color: var(--text-tertiary);">siid</label><input x-model.number="rsiid" type="number" class="input-sm"></div>
-                                <div><label style="font-size: 11px; color: var(--text-tertiary);">piid</label><input x-model.number="rpiid" type="number" class="input-sm"></div>
-                                <button @click="fetch(`/api/devices/${currentDevice.did}/prop/${rsiid}/${rpiid}`).then(r=>r.json()).then(d=>result=JSON.stringify(d.value))"
-                                        class="scene-btn" style="height: 40px; background: rgba(0,0,0,0.04); color: var(--text-secondary);">读取</button>
-                                <span class="data-value" style="height: 40px; display: flex; align-items: center;" x-text="result || '-'"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Device List -->
-            <div x-show="!currentDevice && tab==='devices'">
-                <p class="section-title" style="margin-bottom: 16px;">全部设备</p>
-                <div class="device-grid">
-                    <template x-for="dev in devices" :key="dev.did">
-                        <div class="card device-card" @click="openDevice(dev)">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                                <div class="status-dot" :class="dev.online ? 'online' : 'offline'"></div>
-                                <span style="font-size: 15px; font-weight: 500; line-height: 1.3;" x-text="dev.name"></span>
-                            </div>
-                            <p style="font-size: 12px; color: var(--text-tertiary);" x-text="dev.room || '未分配房间'"></p>
+                            <div class="tile-name" x-text="dev.name"></div>
+                            <div class="tile-status" x-text="deviceStatus(dev)"></div>
                         </div>
                     </template>
                 </div>
-                <p x-show="devices.length === 0" style="text-align: center; padding: 60px 0; color: var(--text-tertiary); font-size: 14px;">暂无设备</p>
-            </div>
+            </section>
 
-            <!-- Scenes -->
-            <div x-show="!currentDevice && tab==='scenes'">
-                <p class="section-title" style="margin-bottom: 16px;">智能场景</p>
-                <div style="display: grid; gap: 10px;">
-                    <template x-for="scene in scenes" :key="scene.scene_id">
-                        <div class="card scene-card">
-                            <span style="font-size: 15px; font-weight: 500;" x-text="scene.name"></span>
-                            <button @click="runScene(scene.scene_id)" class="scene-btn">执行</button>
+            <!-- === DEVICES TAB === -->
+            <section x-show="tab==='devices' && !currentDevice">
+                <h1 class="page-title">设备</h1>
+                <div class="room-tabs">
+                    <button @click="typeFilter=''" :class="!typeFilter && 'active'" class="room-tab">全部</button>
+                    <button @click="typeFilter='light'" :class="typeFilter==='light' && 'active'" class="room-tab">💡 灯光</button>
+                    <button @click="typeFilter='climate'" :class="typeFilter==='climate' && 'active'" class="room-tab">🌡️ 温控</button>
+                    <button @click="typeFilter='sensor'" :class="typeFilter==='sensor' && 'active'" class="room-tab">📊 传感器</button>
+                    <button @click="typeFilter='switch'" :class="typeFilter==='switch' && 'active'" class="room-tab">🔌 开关</button>
+                    <button @click="typeFilter='camera'" :class="typeFilter==='camera' && 'active'" class="room-tab">📷 摄像头</button>
+                </div>
+                <div class="device-list">
+                    <template x-for="dev in typedDevices" :key="dev.did">
+                        <div class="device-row" @click="openDevice(dev)">
+                            <div class="row-icon" :class="deviceColor(dev)" x-html="deviceIcon(dev)"></div>
+                            <div class="row-info">
+                                <div class="row-name" x-text="dev.name"></div>
+                                <div class="row-sub" x-text="(dev.room || '未分配') + ' · ' + (dev.online ? '在线' : '离线')"></div>
+                            </div>
+                            <div class="row-action" x-show="isToggleable(dev)" @click.stop="quickToggle(dev)">
+                                <div class="mini-toggle" :class="dev._on && 'on'"></div>
+                            </div>
                         </div>
                     </template>
                 </div>
-                <p x-show="scenes.length === 0" style="text-align: center; padding: 60px 0; color: var(--text-tertiary); font-size: 14px;">暂无场景</p>
-            </div>
+            </section>
 
-            <!-- Settings -->
-            <div x-show="!currentDevice && tab==='settings'">
-                <p class="section-title" style="margin-bottom: 16px;">设置</p>
-                <div class="card-static" style="padding: 24px;">
-                    <p style="font-size: 15px; font-weight: 500; margin-bottom: 16px;">家庭选择</p>
+            <!-- === SCENES TAB === -->
+            <section x-show="tab==='scenes' && !currentDevice">
+                <h1 class="page-title">场景</h1>
+                <div class="scene-grid">
+                    <template x-for="(scene, i) in scenes" :key="scene.scene_id">
+                        <div class="scene-card" :class="'scene-color-' + (i % 6)" @click="runScene(scene.scene_id)">
+                            <div class="scene-icon">⚡</div>
+                            <div class="scene-name" x-text="scene.name"></div>
+                        </div>
+                    </template>
+                </div>
+                <p x-show="scenes.length===0" class="empty-hint">暂无场景</p>
+            </section>
+
+            <!-- === SETTINGS TAB === -->
+            <section x-show="tab==='settings' && !currentDevice">
+                <h1 class="page-title">设置</h1>
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>账号</span><span class="settings-value">已登录</span>
+                    </div>
+                    <div class="settings-row">
+                        <span>设备数量</span><span class="settings-value" x-text="devices.length + ' 台'"></span>
+                    </div>
+                    <div class="settings-row">
+                        <span>服务状态</span><span class="settings-value" style="color:#34C759">已连接</span>
+                    </div>
+                </div>
+                <div class="settings-card" style="margin-top:12px">
+                    <div class="settings-section-title">家庭选择</div>
                     <template x-for="home in homes" :key="home.home_id">
-                        <label style="display: flex; align-items: center; gap: 10px; padding: 10px 0; cursor: pointer;">
-                            <input type="checkbox" :value="home.home_id" x-model="selectedHomes"
-                                   style="width: 18px; height: 18px; accent-color: var(--accent-blue);">
-                            <span style="font-size: 14px;" x-text="home.name"></span>
-                            <span style="font-size: 12px; color: var(--text-tertiary);" x-text="home.room_count + ' 个房间'"></span>
+                        <label class="settings-check">
+                            <input type="checkbox" :value="home.home_id" x-model="selectedHomes">
+                            <span x-text="home.name"></span>
+                            <span class="check-sub" x-text="home.room_count + '个房间'"></span>
                         </label>
                     </template>
-                    <button @click="saveHomes()" class="btn-primary" style="margin-top: 16px; max-width: 200px;">保存</button>
+                    <button @click="saveHomes()" class="btn-save">保存</button>
                 </div>
-                <div class="card-static" style="padding: 24px; margin-top: 12px;">
-                    <button @click="logout()" style="background: none; border: none; font-size: 14px; color: var(--accent-orange); cursor: pointer;">退出登录</button>
+                <div class="settings-card" style="margin-top:12px">
+                    <button @click="logout()" class="btn-logout">退出登录</button>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Bottom Navigation (Mobile) -->
-        <div class="bottom-nav">
-            <div class="nav-item" :class="tab==='devices' ? 'active' : ''" @click="tab='devices'; currentDevice=null">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                <span class="nav-label">设备</span>
-            </div>
-            <div class="nav-item" :class="tab==='scenes' ? 'active' : ''" @click="tab='scenes'; currentDevice=null">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                <span class="nav-label">场景</span>
-            </div>
-            <div class="nav-item" :class="tab==='settings' ? 'active' : ''" @click="tab='settings'; currentDevice=null">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                <span class="nav-label">设置</span>
-            </div>
-        </div>
+            <!-- === DEVICE DETAIL === -->
+            <section x-show="currentDevice">
+                <div class="detail-header">
+                    <button @click="currentDevice=null" class="btn-back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                        <span x-text="currentDevice?.name"></span>
+                    </button>
+                    <span class="detail-status" :class="currentDevice?.online ? 'online' : ''" x-text="currentDevice?.online ? '在线' : '离线'"></span>
+                </div>
+
+                <!-- Device-specific control panels -->
+                <div class="detail-body" x-show="currentDevice">
+
+                    <!-- Large status circle -->
+                    <div class="status-hero" :class="deviceColor(currentDevice)">
+                        <div class="hero-icon" x-html="deviceIcon(currentDevice, 48)"></div>
+                        <div class="hero-label" x-text="deviceStatus(currentDevice)"></div>
+                    </div>
+
+                    <!-- SPEC-based controls -->
+                    <template x-if="currentDevice?.spec">
+                        <div>
+                            <template x-for="service in currentDevice.spec.services" :key="service.iid">
+                                <div class="control-section" x-show="service.properties.filter(p=>p.access&&(p.access.includes('write')||p.access.includes('read'))).length > 0">
+                                    <div class="section-label" x-text="service.name"></div>
+                                    <div class="control-card">
+                                        <template x-for="prop in service.properties.filter(p=>p.access&&p.access.includes('write'))" :key="service.iid+'-'+prop.iid">
+                                            <div class="control-row">
+                                                <span class="control-name" x-text="prop.name"></span>
+                                                <div class="control-widget">
+                                                    <!-- Bool toggle -->
+                                                    <template x-if="prop.format==='bool'">
+                                                        <div class="toggle-switch" :class="propValues[service.iid+'-'+prop.iid] && 'on'" @click="toggleProp(service.iid, prop.iid)">
+                                                            <div class="toggle-knob"></div>
+                                                        </div>
+                                                    </template>
+                                                    <!-- Range slider -->
+                                                    <template x-if="prop.format!=='bool' && prop.range">
+                                                        <div class="slider-wrap">
+                                                            <input type="range" :min="prop.range[0]" :max="prop.range[1]" :step="prop.range[2]||1"
+                                                                   :value="propValues[service.iid+'-'+prop.iid]||0"
+                                                                   @change="setPropValue(service.iid,prop.iid,Number($event.target.value))" class="range-slider">
+                                                            <span class="slider-val" x-text="propValues[service.iid+'-'+prop.iid]??'-'"></span>
+                                                        </div>
+                                                    </template>
+                                                    <!-- Value list -->
+                                                    <template x-if="prop.value_list && prop.format!=='bool'">
+                                                        <div class="chip-group">
+                                                            <template x-for="v in prop.value_list" :key="v.value">
+                                                                <button class="chip" :class="propValues[service.iid+'-'+prop.iid]==v.value && 'active'"
+                                                                        @click="setPropValue(service.iid,prop.iid,v.value)" x-text="v.description"></button>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                    <!-- Number input -->
+                                                    <template x-if="prop.format!=='bool' && !prop.range && !prop.value_list">
+                                                        <div class="num-input-wrap">
+                                                            <input type="number" class="num-input" :value="propValues[service.iid+'-'+prop.iid]"
+                                                                   @keydown.enter="setPropValue(service.iid,prop.iid,Number($event.target.value))">
+                                                            <button class="btn-set" @click="setPropValue(service.iid,prop.iid,Number($el.previousElementSibling.value))">设置</button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <!-- Read-only props -->
+                                        <template x-for="prop in service.properties.filter(p=>p.access&&!p.access.includes('write')&&p.access.includes('read'))" :key="'r'+service.iid+'-'+prop.iid">
+                                            <div class="control-row readonly">
+                                                <span class="control-name" x-text="prop.name"></span>
+                                                <span class="control-value" x-text="propValues[service.iid+'-'+prop.iid]??'-'"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Fallback: no SPEC -->
+                    <div x-show="currentDevice && !currentDevice.spec && currentDevice.did">
+                        <div class="control-section">
+                            <div class="section-label">快捷控制</div>
+                            <div class="control-card">
+                                <div class="quick-buttons">
+                                    <button @click="setPropValue(2,1,true)" class="btn-quick on">打开</button>
+                                    <button @click="setPropValue(2,1,false)" class="btn-quick off">关闭</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <div class="section-label">手动控制</div>
+                            <div class="control-card" x-data="{s:2,p:1,v:'',rs:2,rp:1,rv:''}">
+                                <div class="manual-row">
+                                    <input x-model.number="s" type="number" placeholder="siid" class="num-input sm">
+                                    <input x-model.number="p" type="number" placeholder="piid" class="num-input sm">
+                                    <input x-model="v" type="text" placeholder="value" class="num-input flex">
+                                    <button @click="let val=v==='true'?true:v==='false'?false:isNaN(v)?v:Number(v);$dispatch('set-prop',{siid:s,piid:p,value:val})" class="btn-set">设置</button>
+                                </div>
+                                <div class="manual-row" style="margin-top:8px">
+                                    <input x-model.number="rs" type="number" placeholder="siid" class="num-input sm">
+                                    <input x-model.number="rp" type="number" placeholder="piid" class="num-input sm">
+                                    <button @click="fetch(`/api/devices/${currentDevice.did}/prop/${rs}/${rp}`).then(r=>r.json()).then(d=>rv=JSON.stringify(d.value))" class="btn-set secondary">读取</button>
+                                    <span class="read-result" x-text="rv||'-'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Tab Bar (Mobile) -->
+        <nav class="tab-bar">
+            <button @click="navigate('home')" :class="tab==='home' && 'active'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>家庭</span>
+            </button>
+            <button @click="navigate('devices')" :class="tab==='devices' && 'active'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                <span>设备</span>
+            </button>
+            <button @click="navigate('scenes')" :class="tab==='scenes' && 'active'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>场景</span>
+            </button>
+            <button @click="navigate('settings')" :class="tab==='settings' && 'active'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>设置</span>
+            </button>
+        </nav>
     </div>
 </div>
-
-<script>
-// Show desktop header on wider screens
-if (window.innerWidth >= 768) {
-    document.addEventListener('alpine:init', () => {
-        setTimeout(() => {
-            const h = document.querySelector('[x-ref="desktopHeader"]');
-            if (h) h.style.display = 'block';
-        }, 100);
-    });
-}
-</script>
 <script src="/app.js"></script>
 </body>
 </html>

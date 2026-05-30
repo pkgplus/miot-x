@@ -172,6 +172,51 @@
                         <div class="hero-label" x-text="deviceStatus(currentDevice)"></div>
                     </div>
 
+                    <!-- ====== SENSOR / TEMP-HUMIDITY TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='sensor' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">传感器数据</div>
+                            <div class="sensor-dashboard">
+                                <div class="sensor-big-card" x-show="propValues['2-1001']!==undefined">
+                                    <div class="sensor-big-value" x-text="propValues['2-1001']!==undefined ? Number(propValues['2-1001']).toFixed(1) : '--'"></div>
+                                    <div class="sensor-big-unit">°C</div>
+                                    <div class="sensor-big-label">温度</div>
+                                </div>
+                                <div class="sensor-big-card" x-show="propValues['2-1002']!==undefined">
+                                    <div class="sensor-big-value" x-text="propValues['2-1002']??'--'"></div>
+                                    <div class="sensor-big-unit">%</div>
+                                    <div class="sensor-big-label">湿度</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section" x-show="propValues['3-1003']!==undefined">
+                            <div class="section-label">设备信息</div>
+                            <div class="control-card">
+                                <div class="control-row readonly">
+                                    <span class="control-name">电池电量</span>
+                                    <span class="control-value">
+                                        <span class="battery-bar"><span class="battery-fill" :style="'width:'+Math.min(propValues['3-1003']||0,100)+'%'"></span></span>
+                                        <span x-text="(propValues['3-1003']||'--')+'%'"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Fallback: show all readable props from spec if not the standard layout -->
+                        <div class="control-section" x-show="!propValues['2-1001'] && !propValues['2-1002']">
+                            <div class="section-label">属性数据</div>
+                            <div class="control-card">
+                                <template x-for="service in currentDevice?.spec?.services||[]" :key="service.iid">
+                                    <template x-for="prop in service.properties.filter(p=>p.access&&p.access.includes('read'))" :key="service.iid+'-'+prop.iid">
+                                        <div class="control-row readonly">
+                                            <span class="control-name" x-text="prop.name"></span>
+                                            <span class="control-value" x-text="propValues[service.iid+'-'+prop.iid]??'--'"></span>
+                                        </div>
+                                    </template>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- ====== LIGHT TEMPLATE ====== -->
                     <div x-show="currentDevice && getDeviceType(currentDevice)==='light' && currentDevice.spec">
                         <div class="control-section">

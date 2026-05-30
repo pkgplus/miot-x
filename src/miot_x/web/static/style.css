@@ -242,6 +242,18 @@ body {
 .btn-action:hover { background:rgba(50,186,200,0.15); }
 .btn-action:active { transform:scale(0.95); }
 
+/* Sensor Dashboard */
+.sensor-dashboard { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.sensor-big-card { background:var(--white); border-radius:var(--radius); box-shadow:var(--card-shadow); padding:28px 20px; text-align:center; }
+.sensor-big-value { font-size:42px; font-weight:200; font-variant-numeric:tabular-nums; letter-spacing:-1px; color:var(--text); line-height:1; }
+.sensor-big-unit { font-size:16px; font-weight:400; color:var(--text3); margin-top:4px; }
+.sensor-big-label { font-size:13px; color:var(--text3); margin-top:10px; font-weight:500; }
+
+/* Battery bar */
+.battery-bar { display:inline-block; width:32px; height:12px; border-radius:3px; border:1.5px solid var(--text3); position:relative; vertical-align:middle; margin-right:6px; }
+.battery-bar::after { content:''; position:absolute; right:-4px; top:3px; width:2px; height:4px; background:var(--text3); border-radius:0 1px 1px 0; }
+.battery-fill { display:block; height:100%; border-radius:1.5px; background:var(--green); transition:width 0.5s ease; }
+
 /* Playback controls (Speaker) */
 .playback-controls { display:flex; align-items:center; justify-content:center; gap:16px; padding:20px; }
 .pb-btn { width:48px; height:48px; border:none; border-radius:50%; background:#F0F0F4; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all var(--transition); }

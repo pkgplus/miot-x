@@ -11,6 +11,7 @@ from starlette.routing import Route
 
 from ...lib.auth import MIoTAuth
 from ...lib.config import AUTH_FILE
+from ...lib.proxy import reset_shared_proxy
 from ..oauth_callback import start_callback_server, stop_callback_server
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ async def _wait_and_exchange(auth: MIoTAuth, code_future: asyncio.Future, runner
     try:
         code = await asyncio.wait_for(code_future, timeout=120)
         await auth.exchange_code(code)
+        await reset_shared_proxy()
         _LOGGER.info("OAuth 登录成功（自动回调）")
     except asyncio.TimeoutError:
         _LOGGER.warning("OAuth 回调超时")
@@ -82,6 +84,7 @@ async def auth_callback(request: Request):
         auth = MIoTAuth()
         await auth.gen_oauth_url()
         await auth.exchange_code(code)
+        await reset_shared_proxy()
         return JSONResponse({"success": True})
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)

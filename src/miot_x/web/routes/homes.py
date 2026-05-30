@@ -8,8 +8,17 @@ from ...lib.config import get_selected_home_ids, save_selected_home_ids
 from ...lib.proxy import get_shared_proxy
 
 
+async def _get_proxy_or_error():
+    try:
+        return await get_shared_proxy(), None
+    except Exception as e:
+        return None, JSONResponse({"error": f"未连接: {e}"}, status_code=503)
+
+
 async def list_homes(request: Request):
-    proxy = await get_shared_proxy()
+    proxy, err = await _get_proxy_or_error()
+    if err:
+        return err
     homes = await proxy.get_homes()
     selected = get_selected_home_ids()
     result = []

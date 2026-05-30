@@ -7,8 +7,17 @@ from starlette.routing import Route
 from ...lib.proxy import get_shared_proxy
 
 
+async def _get_proxy_or_error():
+    try:
+        return await get_shared_proxy(), None
+    except Exception as e:
+        return None, JSONResponse({"error": f"未连接: {e}"}, status_code=503)
+
+
 async def list_scenes(request: Request):
-    proxy = await get_shared_proxy()
+    proxy, err = await _get_proxy_or_error()
+    if err:
+        return err
     scenes = await proxy.get_scenes()
     result = [
         {"scene_id": s.scene_id, "name": s.scene_name, "home_id": s.home_id}
@@ -19,7 +28,9 @@ async def list_scenes(request: Request):
 
 async def run_scene(request: Request):
     scene_id = request.path_params["scene_id"]
-    proxy = await get_shared_proxy()
+    proxy, err = await _get_proxy_or_error()
+    if err:
+        return err
     scenes = await proxy.get_scenes()
     for s in scenes.values():
         if s.scene_id == scene_id:

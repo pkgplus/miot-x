@@ -10,13 +10,17 @@ function app() {
         scenes: [],
         homes: [],
         selectedHomes: [],
+        currentDevice: null,
+        propValues: {},
         pollTimer: null,
 
         async init() {
             await this.checkAuth();
-            if (this.loggedIn) {
-                await this.loadData();
-            }
+            if (this.loggedIn) await this.loadData();
+            document.addEventListener('set-prop', (e) => {
+                const { siid, piid, value } = e.detail;
+                this.setPropValue(siid, piid, value);
+            });
         },
 
         async checkAuth() {
@@ -24,25 +28,18 @@ function app() {
                 const res = await fetch('/api/auth/status');
                 const data = await res.json();
                 this.loggedIn = data.logged_in;
-            } catch (e) {
-                this.loggedIn = false;
-            }
+            } catch (e) { this.loggedIn = false; }
         },
 
         async startLogin() {
             this.loginLoading = true;
             this.loginError = '';
             this.manualMode = false;
-
             try {
                 const res = await fetch('/api/auth/start', { method: 'POST' });
                 const data = await res.json();
-
-                // 打开 OAuth 页面
                 window.open(data.auth_url, '_blank');
-
                 if (data.auto_callback) {
-                    // 自动模式：轮询等待登录完成
                     this.pollTimer = setInterval(async () => {
                         await this.checkAuth();
                         if (this.loggedIn) {
@@ -51,8 +48,6 @@ function app() {
                             await this.loadData();
                         }
                     }, 2000);
-
-                    // 120 秒后超时
                     setTimeout(() => {
                         if (!this.loggedIn) {
                             clearInterval(this.pollTimer);
@@ -61,7 +56,6 @@ function app() {
                         }
                     }, 120000);
                 } else {
-                    // 手动模式
                     this.loginLoading = false;
                     this.manualMode = true;
                 }
@@ -73,10 +67,7 @@ function app() {
 
         async submitCallback() {
             const match = this.callbackUrl.match(/[?&]code=([^&]+)/);
-            if (!match) {
-                this.loginError = 'URL 中未找到授权码';
-                return;
-            }
+            if (!match) { this.loginError = 'URL 中未找到授权码'; return; }
             try {
                 const res = await fetch('/api/auth/callback', {
                     method: 'POST',
@@ -91,9 +82,7 @@ function app() {
                 } else {
                     this.loginError = data.error || '登录失败';
                 }
-            } catch (e) {
-                this.loginError = '提交失败: ' + e.message;
-            }
+            } catch (e) { this.loginError = '提交失败: ' + e.message; }
         },
 
         async logout() {
@@ -102,19 +91,17 @@ function app() {
             this.devices = [];
             this.scenes = [];
             this.homes = [];
+            this.currentDevice = null;
         },
 
         async loadData() {
-            await Promise.all([
-                this.loadDevices(),
-                this.loadScenes(),
-                this.loadHomes(),
-            ]);
+            await Promise.all([this.loadDevices(), this.loadScenes(), this.loadHomes()]);
         },
 
         async loadDevices() {
             try {
                 const res = await fetch('/api/devices');
+                if (!res.ok) return;
                 const data = await res.json();
                 this.devices = data.devices || [];
             } catch (e) { /* ignore */ }
@@ -123,6 +110,7 @@ function app() {
         async loadScenes() {
             try {
                 const res = await fetch('/api/scenes');
+                if (!res.ok) return;
                 const data = await res.json();
                 this.scenes = data.scenes || [];
             } catch (e) { /* ignore */ }
@@ -131,18 +119,59 @@ function app() {
         async loadHomes() {
             try {
                 const res = await fetch('/api/homes');
+                if (!res.ok) return;
                 const data = await res.json();
                 this.homes = data.homes || [];
                 this.selectedHomes = data.selected || [];
             } catch (e) { /* ignore */ }
         },
 
-        async deviceOn(did) {
-            await fetch(`/api/devices/${did}/on`, { method: 'POST' });
+        async openDevice(dev) {
+            this.currentDevice = { ...dev, spec: null };
+            this.propValues = {};
+            try {
+                const res = await fetch(`/api/devices/${dev.did}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                this.currentDevice = data;
+                await this.loadPropValues();
+            } catch (e) { /* ignore */ }
         },
 
-        async deviceOff(did) {
-            await fetch(`/api/devices/${did}/off`, { method: 'POST' });
+        async loadPropValues() {
+            if (!this.currentDevice?.spec) return;
+            for (const service of this.currentDevice.spec.services) {
+                for (const prop of service.properties) {
+                    if (prop.access && prop.access.includes('read')) {
+                        try {
+                            const res = await fetch(`/api/devices/${this.currentDevice.did}/prop/${service.iid}/${prop.iid}`);
+                            if (res.ok) {
+                                const data = await res.json();
+                                this.propValues[`${service.iid}-${prop.iid}`] = data.value;
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+            }
+        },
+
+        async toggleProp(siid, piid) {
+            const key = `${siid}-${piid}`;
+            const newVal = !this.propValues[key];
+            this.propValues[key] = newVal;
+            await this.setPropValue(siid, piid, newVal);
+        },
+
+        async setPropValue(siid, piid, value) {
+            const key = `${siid}-${piid}`;
+            this.propValues[key] = value;
+            try {
+                await fetch(`/api/devices/${this.currentDevice.did}/prop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ siid, piid, value }),
+                });
+            } catch (e) { /* ignore */ }
         },
 
         async runScene(sceneId) {

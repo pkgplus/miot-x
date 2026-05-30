@@ -6,109 +6,229 @@
     <title>miot-x</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-<div x-data="app()" x-init="init()" class="max-w-4xl mx-auto p-4">
+<div x-data="app()" x-init="init()" x-cloak class="max-w-5xl mx-auto p-4">
 
     <!-- Header -->
     <header class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">miot-x</h1>
+        <h1 class="text-2xl font-bold text-gray-800 cursor-pointer" @click="currentDevice=null; tab='devices'">miot-x</h1>
         <div x-show="loggedIn" class="flex items-center gap-3">
             <span class="text-sm text-green-600">已连接</span>
             <button @click="logout()" class="text-sm text-gray-500 hover:text-red-500">登出</button>
         </div>
     </header>
 
-    <!-- Login Page -->
+    <!-- Login -->
     <div x-show="!loggedIn" class="flex flex-col items-center justify-center mt-20">
         <div class="bg-white rounded-lg shadow-md p-8 w-full max-w-md text-center">
             <h2 class="text-xl font-semibold mb-4">使用小米账号登录</h2>
             <p class="text-gray-500 mb-6 text-sm">登录后可控制米家智能设备</p>
-
-            <button @click="startLogin()"
-                    :disabled="loginLoading"
+            <button @click="startLogin()" :disabled="loginLoading"
                     class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg disabled:opacity-50">
                 <span x-show="!loginLoading">登录小米账号</span>
                 <span x-show="loginLoading">等待授权中...</span>
             </button>
-
-            <!-- 手动模式 -->
             <div x-show="manualMode" class="mt-4 text-left">
                 <p class="text-sm text-gray-600 mb-2">请粘贴浏览器跳转后的完整 URL：</p>
                 <input x-model="callbackUrl" type="text" placeholder="https://127.0.0.1/?code=..."
                        class="w-full border rounded px-3 py-2 text-sm">
-                <button @click="submitCallback()" class="mt-2 w-full bg-blue-500 text-white py-2 rounded text-sm">
-                    提交
-                </button>
+                <button @click="submitCallback()" class="mt-2 w-full bg-blue-500 text-white py-2 rounded text-sm">提交</button>
             </div>
-
             <p x-show="loginError" x-text="loginError" class="mt-3 text-red-500 text-sm"></p>
         </div>
     </div>
 
-    <!-- Dashboard -->
+    <!-- Main Content -->
     <div x-show="loggedIn">
-        <!-- Tabs -->
-        <div class="flex border-b mb-4">
-            <button @click="tab='devices'" :class="tab==='devices' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'"
-                    class="px-4 py-2 font-medium">设备</button>
-            <button @click="tab='scenes'" :class="tab==='scenes' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'"
-                    class="px-4 py-2 font-medium">场景</button>
-            <button @click="tab='settings'" :class="tab==='settings' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'"
-                    class="px-4 py-2 font-medium">设置</button>
-        </div>
 
-        <!-- Devices Tab -->
-        <div x-show="tab==='devices'">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <template x-for="dev in devices" :key="dev.did">
-                    <div class="bg-white rounded-lg shadow p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="font-medium" x-text="dev.name"></p>
-                                <p class="text-xs text-gray-400" x-text="dev.room || '未分配'"></p>
-                            </div>
-                            <div class="flex gap-2">
-                                <button @click="deviceOn(dev.did)"
-                                        class="px-3 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200">开</button>
-                                <button @click="deviceOff(dev.did)"
-                                        class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">关</button>
+        <!-- Device Detail View -->
+        <div x-show="currentDevice">
+            <button @click="currentDevice=null" class="mb-4 text-sm text-blue-500 hover:underline">&larr; 返回设备列表</button>
+
+            <div class="bg-white rounded-xl border p-5 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-semibold" x-text="currentDevice?.name"></h2>
+                    <span class="text-xs px-2 py-1 rounded"
+                          :class="currentDevice?.online ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                          x-text="currentDevice?.online ? '在线' : '离线'"></span>
+                </div>
+                <p class="text-xs text-gray-400" x-text="currentDevice?.model"></p>
+            </div>
+
+            <!-- SPEC Properties Control -->
+            <template x-if="currentDevice?.spec">
+                <div>
+                    <template x-for="service in currentDevice.spec.services" :key="service.iid">
+                        <div class="bg-white rounded-xl border p-5 mb-4">
+                            <h3 class="font-medium text-gray-700 mb-3" x-text="service.name"></h3>
+                            <div class="space-y-3">
+                                <template x-for="prop in service.properties.filter(p => p.access && p.access.includes('write'))" :key="prop.iid">
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <span class="text-sm font-medium" x-text="prop.name"></span>
+                                            <span class="text-xs text-gray-400 ml-2" x-text="'siid=' + service.iid + ' piid=' + prop.iid"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <!-- Bool toggle -->
+                                            <template x-if="prop.format === 'bool'">
+                                                <div class="w-12 h-6 rounded-full relative cursor-pointer transition-colors"
+                                                     :class="propValues[service.iid + '-' + prop.iid] ? 'bg-blue-500' : 'bg-gray-300'"
+                                                     @click="toggleProp(service.iid, prop.iid)">
+                                                    <div class="w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all shadow"
+                                                         :class="propValues[service.iid + '-' + prop.iid] ? 'left-[26px]' : 'left-[2px]'"></div>
+                                                </div>
+                                            </template>
+                                            <!-- Number with range -->
+                                            <template x-if="prop.format !== 'bool' && prop.range">
+                                                <div class="flex items-center gap-2">
+                                                    <input type="range" :min="prop.range[0]" :max="prop.range[1]" :step="prop.range[2] || 1"
+                                                           :value="propValues[service.iid + '-' + prop.iid] || 0"
+                                                           @change="setPropValue(service.iid, prop.iid, Number($event.target.value))"
+                                                           class="w-32">
+                                                    <span class="text-xs text-gray-500 w-8 text-right" x-text="propValues[service.iid + '-' + prop.iid] ?? '-'"></span>
+                                                </div>
+                                            </template>
+                                            <!-- Number without range -->
+                                            <template x-if="prop.format !== 'bool' && !prop.range && !prop.value_list">
+                                                <div class="flex items-center gap-1">
+                                                    <input type="number" class="w-20 text-sm border rounded px-2 py-1"
+                                                           :value="propValues[service.iid + '-' + prop.iid]"
+                                                           @keydown.enter="setPropValue(service.iid, prop.iid, Number($event.target.value))">
+                                                    <button @click="setPropValue(service.iid, prop.iid, Number($el.previousElementSibling.value))"
+                                                            class="px-2 py-1 bg-blue-500 text-white text-xs rounded">设置</button>
+                                                </div>
+                                            </template>
+                                            <!-- Value list (enum) -->
+                                            <template x-if="prop.value_list">
+                                                <select @change="setPropValue(service.iid, prop.iid, Number($event.target.value))"
+                                                        class="text-sm border rounded px-2 py-1">
+                                                    <template x-for="v in prop.value_list" :key="v.value">
+                                                        <option :value="v.value" :selected="propValues[service.iid + '-' + prop.iid] == v.value"
+                                                                x-text="v.description"></option>
+                                                    </template>
+                                                </select>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <!-- Read-only props -->
+                                <template x-for="prop in service.properties.filter(p => p.access && !p.access.includes('write'))" :key="prop.iid">
+                                    <div class="flex items-center justify-between p-2 text-sm">
+                                        <span class="text-gray-600" x-text="prop.name"></span>
+                                        <span class="font-mono text-gray-800 bg-gray-100 px-2 py-0.5 rounded"
+                                              x-text="propValues[service.iid + '-' + prop.iid] ?? '-'"></span>
+                                    </div>
+                                </template>
                             </div>
                         </div>
-                        <p class="text-xs mt-1" :class="dev.online ? 'text-green-500' : 'text-gray-400'"
-                           x-text="dev.online ? '在线' : '离线'"></p>
+                    </template>
+                </div>
+            </template>
+            <!-- Fallback: no SPEC available -->
+            <div x-show="currentDevice && !currentDevice.spec && currentDevice.did">
+                <div class="bg-white rounded-xl border p-5 mb-4">
+                    <h3 class="font-medium text-gray-700 mb-3">快捷控制</h3>
+                    <div class="flex gap-3 mb-4">
+                        <button @click="setPropValue(2, 1, true)"
+                                class="flex-1 py-3 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100">打开</button>
+                        <button @click="setPropValue(2, 1, false)"
+                                class="flex-1 py-3 bg-red-50 text-red-700 rounded-lg font-medium hover:bg-red-100">关闭</button>
                     </div>
-                </template>
+                </div>
+                <div class="bg-white rounded-xl border p-5 mb-4">
+                    <h3 class="font-medium text-gray-700 mb-3">手动设置属性</h3>
+                    <div x-data="{ siid: 2, piid: 1, value: '' }" class="flex items-end gap-2">
+                        <div>
+                            <label class="text-xs text-gray-500">siid</label>
+                            <input x-model.number="siid" type="number" class="w-16 border rounded px-2 py-1 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">piid</label>
+                            <input x-model.number="piid" type="number" class="w-16 border rounded px-2 py-1 text-sm">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-xs text-gray-500">value</label>
+                            <input x-model="value" type="text" placeholder="true/false/数字" class="w-full border rounded px-2 py-1 text-sm">
+                        </div>
+                        <button @click="let v = value === 'true' ? true : value === 'false' ? false : isNaN(value) ? value : Number(value); $dispatch('set-prop', {siid, piid, value: v})"
+                                class="px-3 py-1.5 bg-blue-500 text-white text-sm rounded">设置</button>
+                    </div>
+                    <div x-data="{ rsiid: 2, rpiid: 1, result: '' }" class="flex items-end gap-2 mt-3">
+                        <div>
+                            <label class="text-xs text-gray-500">siid</label>
+                            <input x-model.number="rsiid" type="number" class="w-16 border rounded px-2 py-1 text-sm">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">piid</label>
+                            <input x-model.number="rpiid" type="number" class="w-16 border rounded px-2 py-1 text-sm">
+                        </div>
+                        <button @click="fetch(`/api/devices/${$data.currentDevice?.did || currentDevice.did}/prop/${rsiid}/${rpiid}`).then(r=>r.json()).then(d=>result=JSON.stringify(d.value))"
+                                class="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded">读取</button>
+                        <span class="text-sm font-mono bg-gray-100 px-2 py-1 rounded" x-text="result || '-'"></span>
+                    </div>
+                </div>
             </div>
-            <p x-show="devices.length === 0" class="text-gray-400 text-center py-8">暂无设备</p>
         </div>
 
-        <!-- Scenes Tab -->
-        <div x-show="tab==='scenes'">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <template x-for="scene in scenes" :key="scene.scene_id">
-                    <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
-                        <span class="font-medium" x-text="scene.name"></span>
-                        <button @click="runScene(scene.scene_id)"
-                                class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">执行</button>
-                    </div>
-                </template>
+        <!-- Tabs & List View -->
+        <div x-show="!currentDevice">
+            <div class="flex border-b mb-4">
+                <button @click="tab='devices'" :class="tab==='devices' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'"
+                        class="px-4 py-2 font-medium">设备</button>
+                <button @click="tab='scenes'" :class="tab==='scenes' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'"
+                        class="px-4 py-2 font-medium">场景</button>
+                <button @click="tab='settings'" :class="tab==='settings' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500'"
+                        class="px-4 py-2 font-medium">设置</button>
             </div>
-            <p x-show="scenes.length === 0" class="text-gray-400 text-center py-8">暂无场景</p>
-        </div>
 
-        <!-- Settings Tab -->
-        <div x-show="tab==='settings'">
-            <div class="bg-white rounded-lg shadow p-4">
-                <h3 class="font-medium mb-3">家庭选择</h3>
-                <template x-for="home in homes" :key="home.home_id">
-                    <label class="flex items-center gap-2 py-1">
-                        <input type="checkbox" :value="home.home_id" x-model="selectedHomes">
-                        <span x-text="home.name + ' (' + home.room_count + ' 个房间)'"></span>
-                    </label>
-                </template>
-                <button @click="saveHomes()" class="mt-3 bg-blue-500 text-white px-4 py-2 rounded text-sm">保存</button>
-                <p x-show="homes.length === 0" class="text-gray-400">加载中...</p>
+            <!-- Devices -->
+            <div x-show="tab==='devices'">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <template x-for="dev in devices" :key="dev.did">
+                        <div @click="openDevice(dev)" class="bg-white rounded-xl border p-4 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
+                            <div class="flex items-start gap-2 mb-2">
+                                <span class="mt-1.5 w-2 h-2 rounded-full shrink-0"
+                                      :class="dev.online ? 'bg-green-400' : 'bg-gray-300'"></span>
+                                <span class="font-medium text-sm text-gray-800 leading-snug line-clamp-2" x-text="dev.name"></span>
+                            </div>
+                            <p class="text-xs text-gray-400" x-text="dev.room || '未分配'"></p>
+                        </div>
+                    </template>
+                </div>
+                <p x-show="devices.length === 0" class="text-gray-400 text-center py-8">暂无设备</p>
+            </div>
+
+            <!-- Scenes -->
+            <div x-show="tab==='scenes'">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <template x-for="scene in scenes" :key="scene.scene_id">
+                        <div class="bg-white rounded-xl border p-4 flex items-center justify-between">
+                            <span class="font-medium text-sm" x-text="scene.name"></span>
+                            <button @click="runScene(scene.scene_id)"
+                                    class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100">执行</button>
+                        </div>
+                    </template>
+                </div>
+                <p x-show="scenes.length === 0" class="text-gray-400 text-center py-8">暂无场景</p>
+            </div>
+
+            <!-- Settings -->
+            <div x-show="tab==='settings'">
+                <div class="bg-white rounded-xl border p-5">
+                    <h3 class="font-medium mb-3">家庭选择</h3>
+                    <template x-for="home in homes" :key="home.home_id">
+                        <label class="flex items-center gap-2 py-1">
+                            <input type="checkbox" :value="home.home_id" x-model="selectedHomes">
+                            <span x-text="home.name + ' (' + home.room_count + ' 个房间)'"></span>
+                        </label>
+                    </template>
+                    <button @click="saveHomes()" class="mt-3 bg-blue-500 text-white px-4 py-2 rounded text-sm">保存</button>
+                </div>
             </div>
         </div>
     </div>

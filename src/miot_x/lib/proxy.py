@@ -177,7 +177,15 @@ _shared_proxy: MiotProxy | None = None
 async def get_shared_proxy() -> MiotProxy:
     """获取全局共享的 MiotProxy 实例（懒初始化）。"""
     global _shared_proxy
-    if _shared_proxy is None:
+    if _shared_proxy is None or not _shared_proxy.is_ready:
         _shared_proxy = MiotProxy()
         await _shared_proxy.init()
     return _shared_proxy
+
+
+async def reset_shared_proxy():
+    """重置共享 proxy（登录后需要重新连接）。"""
+    global _shared_proxy
+    if _shared_proxy:
+        await _shared_proxy.deinit()
+    _shared_proxy = None

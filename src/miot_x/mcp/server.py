@@ -104,7 +104,8 @@ async def get_device(device_name: str) -> dict:
     spec = None
     if _proxy._client and _proxy._client.spec_parser:
         try:
-            spec_raw = await _proxy._client.spec_parser.parse_async(dev.model)
+            urn = dev.urn if hasattr(dev, 'urn') and dev.urn else dev.model
+            spec_raw = await _proxy._client.spec_parser.parse_async(urn)
             if spec_raw:
                 spec = {
                     "type": spec_raw.type,

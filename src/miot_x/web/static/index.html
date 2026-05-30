@@ -134,7 +134,7 @@
                         <span>设备数量</span><span class="settings-value" x-text="devices.length + ' 台'"></span>
                     </div>
                     <div class="settings-row">
-                        <span>服务状态</span><span class="settings-value" style="color:#34C759">已连接</span>
+                        <span>服务状态</span><span class="settings-value" style="color:#32BAC8">已连接</span>
                     </div>
                 </div>
                 <div class="settings-card" style="margin-top:12px">
@@ -160,7 +160,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
                         <span x-text="currentDevice?.name"></span>
                     </button>
-                    <span class="detail-status" :class="currentDevice?.online ? 'online' : ''" x-text="currentDevice?.online ? '在线' : '离线'"></span>
+                    <span class="detail-status" :class="currentDevice?.online && 'online'" x-text="currentDevice?.online ? '在线' : '离线'"></span>
                 </div>
 
                 <!-- Device-specific control panels -->
@@ -170,6 +170,152 @@
                     <div class="status-hero" :class="deviceColor(currentDevice)">
                         <div class="hero-icon" x-html="deviceIcon(currentDevice, 48)"></div>
                         <div class="hero-label" x-text="deviceStatus(currentDevice)"></div>
+                    </div>
+
+                    <!-- ====== LIGHT TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='light' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">灯光控制</div>
+                            <div class="control-card">
+                                <div class="control-row">
+                                    <span class="control-name">开关</span>
+                                    <div class="toggle-switch" :class="propValues['2-1'] && 'on'" @click="toggleProp(2,1)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row" x-show="hasSpec(2,2)">
+                                    <span class="control-name">亮度</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="1" max="100" :value="propValues['2-2']||50" @change="setPropValue(2,2,Number($event.target.value))" class="range-slider">
+                                        <span class="slider-val" x-text="(propValues['2-2']||'-')+'%'"></span>
+                                    </div>
+                                </div>
+                                <div class="control-row" x-show="hasSpec(2,3)">
+                                    <span class="control-name">色温</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="2700" max="6500" :value="propValues['2-3']||4000" @change="setPropValue(2,3,Number($event.target.value))" class="range-slider slider-color-temp">
+                                        <span class="slider-val" x-text="(propValues['2-3']||'-')+'K'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== FAN TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='fan' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">风扇控制</div>
+                            <div class="control-card">
+                                <div class="control-row">
+                                    <span class="control-name">开关</span>
+                                    <div class="toggle-switch" :class="propValues['2-1'] && 'on'" @click="toggleProp(2,1)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">档位</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="1" max="4" step="1" :value="propValues['2-2']||1" @change="setPropValue(2,2,Number($event.target.value))" class="range-slider">
+                                        <span class="slider-val" x-text="propValues['2-2']||'-'"></span>
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">摆风</span>
+                                    <div class="toggle-switch" :class="propValues['2-4'] && 'on'" @click="toggleProp(2,4)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">指示灯</span>
+                                    <div class="toggle-switch" :class="propValues['4-1'] && 'on'" @click="toggleProp(4,1)"><div class="toggle-knob"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== VACUUM TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='vacuum' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">扫地机器人</div>
+                            <div class="control-card">
+                                <div class="control-row readonly">
+                                    <span class="control-name">电量</span>
+                                    <span class="control-value" x-text="(propValues['3-1']||'--')+'%'"></span>
+                                </div>
+                                <div class="control-row readonly">
+                                    <span class="control-name">状态</span>
+                                    <span class="control-value" x-text="propValues['2-1']||'--'"></span>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:16px 20px;">
+                                    <button class="btn-quick on" @click="execAction(2,1)">清扫</button>
+                                    <button class="btn-quick off" @click="execAction(2,2)">停止</button>
+                                    <button class="btn-quick off" @click="execAction(3,1)">回充</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== SPEAKER TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='speaker' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">音箱控制</div>
+                            <div class="control-card">
+                                <div class="control-row">
+                                    <span class="control-name">音量</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="0" max="100" :value="propValues['2-1']||30" @change="setPropValue(2,1,Number($event.target.value))" class="range-slider">
+                                        <span class="slider-val" x-text="(propValues['2-1']||'-')"></span>
+                                    </div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">静音</span>
+                                    <div class="toggle-switch" :class="propValues['2-2'] && 'on'" @click="toggleProp(2,2)"><div class="toggle-knob"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <div class="section-label">播放控制</div>
+                            <div class="control-card">
+                                <div class="playback-controls">
+                                    <button class="pb-btn" @click="execAction(3,5)">⏮</button>
+                                    <button class="pb-btn play" @click="execAction(3,2)">▶</button>
+                                    <button class="pb-btn" @click="execAction(3,3)">⏸</button>
+                                    <button class="pb-btn" @click="execAction(3,6)">⏭</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <div class="section-label">语音指令</div>
+                            <div class="control-card" x-data="{tts:''}">
+                                <div style="display:flex;gap:8px;padding:14px 20px;">
+                                    <input x-model="tts" type="text" placeholder="输入文本或指令..." class="num-input flex" style="text-align:left">
+                                    <button @click="execTTS(tts)" class="btn-set">播报</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== TV Remote Control Template ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='tv' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">遥控器</div>
+                            <div class="control-card tv-remote">
+                                <div class="tv-row">
+                                    <button class="tv-btn power on" @click="execAction(2,5)">开机</button>
+                                    <button class="tv-btn power off" @click="execAction(2,6)">关机</button>
+                                    <button class="tv-btn" @click="execAction(2,9)">信号源</button>
+                                </div>
+                                <div class="tv-row center">
+                                    <button class="tv-btn round" @click="execAction(2,2)">CH+</button>
+                                </div>
+                                <div class="tv-row center">
+                                    <button class="tv-btn round" @click="execAction(2,3)">VOL-</button>
+                                    <div class="tv-ok">TV</div>
+                                    <button class="tv-btn round" @click="execAction(2,4)">VOL+</button>
+                                </div>
+                                <div class="tv-row center">
+                                    <button class="tv-btn round" @click="execAction(2,1)">CH-</button>
+                                </div>
+                                <div class="tv-row">
+                                    <button class="tv-btn" @click="execAction(2,7)">静音</button>
+                                    <button class="tv-btn" @click="execAction(2,8)">取消静音</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- SPEC-based controls -->
@@ -223,6 +369,13 @@
                                             <div class="control-row readonly">
                                                 <span class="control-name" x-text="prop.name"></span>
                                                 <span class="control-value" x-text="propValues[service.iid+'-'+prop.iid]??'-'"></span>
+                                            </div>
+                                        </template>
+                                        <!-- Actions -->
+                                        <template x-for="action in (service.actions||[])" :key="'a'+service.iid+'-'+action.iid">
+                                            <div class="control-row">
+                                                <span class="control-name" x-text="action.name"></span>
+                                                <button class="btn-action" @click="execAction(service.iid, action.iid)">执行</button>
                                             </div>
                                         </template>
                                     </div>

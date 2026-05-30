@@ -4,6 +4,8 @@ function app() {
         tab: 'home', currentDevice: null, propValues: {},
         devices: [], scenes: [], homes: [], selectedHomes: [],
         roomFilter: '', typeFilter: '', pollTimer: null,
+        refreshing: false, xiaozhiConnected: false, showHomeGuide: false,
+        autoRefreshTimer: null,
 
         get rooms() {
             const r = new Set(this.devices.map(d => d.room).filter(Boolean));
@@ -19,11 +21,36 @@ function app() {
 
         async init() {
             await this.checkAuth();
-            if (this.loggedIn) await this.loadData();
+            if (this.loggedIn) {
+                await this.loadData();
+                this.checkXiaozhi();
+                this.startAutoRefresh();
+            }
             document.addEventListener('set-prop', e => {
                 const { siid, piid, value } = e.detail;
                 this.setPropValue(siid, piid, value);
             });
+        },
+
+        startAutoRefresh() {
+            if (this.autoRefreshTimer) clearInterval(this.autoRefreshTimer);
+            this.autoRefreshTimer = setInterval(() => { this.loadDevices(); this.checkXiaozhi(); }, 30000);
+        },
+
+        async refreshDevices() {
+            this.refreshing = true;
+            try { await fetch('/api/devices?refresh=true'); await this.loadDevices(); } catch {}
+            setTimeout(() => { this.refreshing = false; }, 600);
+        },
+
+        async checkXiaozhi() {
+            try { const r = await fetch('/api/status'); const d = await r.json(); this.xiaozhiConnected = d.xiaozhi_connected || false; } catch {}
+        },
+
+        async saveHomesAndContinue() {
+            await this.saveHomes();
+            this.showHomeGuide = false;
+            await this.loadDevices();
         },
 
         navigate(t) { this.tab = t; this.currentDevice = null; },
@@ -37,7 +64,7 @@ function app() {
                 const r = await fetch('/api/auth/start', { method: 'POST' }); const d = await r.json();
                 window.open(d.auth_url, '_blank');
                 if (d.auto_callback) {
-                    this.pollTimer = setInterval(async () => { await this.checkAuth(); if (this.loggedIn) { clearInterval(this.pollTimer); this.loginLoading = false; await this.loadData(); } }, 2000);
+                    this.pollTimer = setInterval(async () => { await this.checkAuth(); if (this.loggedIn) { clearInterval(this.pollTimer); this.loginLoading = false; await this.loadData(); this.startAutoRefresh(); } }, 2000);
                     setTimeout(() => { if (!this.loggedIn) { clearInterval(this.pollTimer); this.loginLoading = false; this.manualMode = true; } }, 120000);
                 } else { this.loginLoading = false; this.manualMode = true; }
             } catch (e) { this.loginLoading = false; this.loginError = e.message; }
@@ -54,7 +81,12 @@ function app() {
         },
         async logout() { await fetch('/api/auth/logout', { method: 'POST' }); this.loggedIn = false; this.devices = []; this.scenes = []; this.homes = []; this.currentDevice = null; },
 
-        async loadData() { await Promise.all([this.loadDevices(), this.loadScenes(), this.loadHomes()]); },
+        async loadData() {
+            await Promise.all([this.loadDevices(), this.loadScenes(), this.loadHomes()]);
+            if (this.homes.length > 0 && (!this.selectedHomes || this.selectedHomes.length === 0) && this.devices.length === 0) {
+                this.showHomeGuide = true;
+            }
+        },
         async loadDevices() {
             try { const r = await fetch('/api/devices'); if (!r.ok) return; const d = await r.json(); this.devices = (d.devices || []).map(dev => ({ ...dev, _on: false })); } catch {}
         },

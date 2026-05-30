@@ -17,6 +17,14 @@ _LOGGER = logging.getLogger(__name__)
 _STATIC_DIR = Path(__file__).parent / "static"
 
 
+_xiaozhi_connected = False
+
+
+def set_xiaozhi_status(connected: bool):
+    global _xiaozhi_connected
+    _xiaozhi_connected = connected
+
+
 async def _status(request):
     """服务状态。"""
     from ..lib.proxy import _shared_proxy
@@ -31,7 +39,18 @@ async def _status(request):
     return JSONResponse({
         "connected": connected,
         "device_count": device_count,
+        "xiaozhi_connected": _xiaozhi_connected,
     })
+
+
+async def _xiaozhi_with_status(mcp_instance):
+    """包装小智桥接，更新连接状态。"""
+    from ..mcp.xiaozhi import xiaozhi_bridge
+    set_xiaozhi_status(True)
+    try:
+        await xiaozhi_bridge(mcp_instance)
+    finally:
+        set_xiaozhi_status(False)
 
 
 def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
@@ -59,7 +78,7 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
         if enable_xiaozhi:
             from ..mcp.xiaozhi import xiaozhi_bridge
             from ..mcp.server import mcp as mcp_instance
-            xiaozhi_task = asyncio.create_task(xiaozhi_bridge(mcp_instance))
+            xiaozhi_task = asyncio.create_task(_xiaozhi_with_status(mcp_instance))
             _LOGGER.info("小智桥接已启动")
 
         yield

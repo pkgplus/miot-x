@@ -10,8 +10,29 @@
 <body>
 <div x-data="app()" x-init="init()" x-cloak>
 
+    <!-- ===== HOME SELECTION GUIDE (first login) ===== -->
+    <div x-show="loggedIn && showHomeGuide" class="login-page">
+        <div class="login-card" style="max-width:420px">
+            <div class="login-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#32BAC8" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <h1 class="login-title" style="font-size:22px">选择家庭</h1>
+            <p class="login-subtitle">选择你要控制的家庭，之后可在设置中更改</p>
+            <div style="text-align:left;margin:20px 0;">
+                <template x-for="home in homes" :key="home.home_id">
+                    <label class="settings-check" style="padding:12px 0;border:none;">
+                        <input type="checkbox" :value="home.home_id" x-model="selectedHomes">
+                        <span x-text="home.name" style="font-size:16px"></span>
+                        <span class="check-sub" x-text="home.room_count+'个房间'"></span>
+                    </label>
+                </template>
+            </div>
+            <button @click="saveHomesAndContinue()" class="btn-login" style="background:#32BAC8">确认</button>
+        </div>
+    </div>
+
     <!-- ===== LOGIN ===== -->
-    <div x-show="!loggedIn" class="login-page">
+    <div x-show="!loggedIn && !showHomeGuide" class="login-page">
         <div class="login-card">
             <div class="login-icon">
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -61,7 +82,15 @@
 
             <!-- === HOME TAB === -->
             <section x-show="tab==='home' && !currentDevice">
-                <h1 class="page-title">家庭</h1>
+                <div class="page-header">
+                    <h1 class="page-title">家庭</h1>
+                    <div class="header-actions">
+                        <span x-show="xiaozhiConnected" class="status-badge green">小智已连接</span>
+                        <button @click="refreshDevices()" class="btn-refresh" :class="refreshing && 'spinning'">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                        </button>
+                    </div>
+                </div>
                 <div class="room-tabs">
                     <button @click="roomFilter=''" :class="!roomFilter && 'active'" class="room-tab">全部</button>
                     <template x-for="room in rooms" :key="room">
@@ -329,6 +358,136 @@
                                 <div style="display:flex;gap:8px;padding:14px 20px;">
                                     <input x-model="tts" type="text" placeholder="输入文本或指令..." class="num-input flex" style="text-align:left">
                                     <button @click="execTTS(tts)" class="btn-set">播报</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== LOCK TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='lock' && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">门锁状态</div>
+                            <div class="sensor-dashboard">
+                                <div class="sensor-big-card">
+                                    <div class="sensor-big-value" style="font-size:28px" x-text="propValues['2-5']==1?'🔒':'🔓'"></div>
+                                    <div class="sensor-big-label" x-text="propValues['2-5']==1?'已锁定':'未锁定'"></div>
+                                </div>
+                                <div class="sensor-big-card">
+                                    <div class="sensor-big-value" x-text="propValues['4-1']||'--'"></div>
+                                    <div class="sensor-big-unit">%</div>
+                                    <div class="sensor-big-label">电池</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== DOORBELL TEMPLATE ====== -->
+                    <div x-show="currentDevice && getDeviceType(currentDevice)==='camera' && currentDevice.spec && (currentDevice.model||'').includes('cateye')">
+                        <div class="control-section">
+                            <div class="section-label">门铃状态</div>
+                            <div class="sensor-dashboard">
+                                <div class="sensor-big-card">
+                                    <div class="sensor-big-value" style="font-size:28px">🔔</div>
+                                    <div class="sensor-big-label" x-text="currentDevice.online?'在线':'离线'"></div>
+                                </div>
+                                <div class="sensor-big-card">
+                                    <div class="sensor-big-value" x-text="propValues['8-1']||'--'"></div>
+                                    <div class="sensor-big-unit">%</div>
+                                    <div class="sensor-big-label">电池</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <div class="section-label">设置</div>
+                            <div class="control-card">
+                                <div class="control-row">
+                                    <span class="control-name">夜视模式</span>
+                                    <div class="toggle-switch" :class="propValues['2-2'] && 'on'" @click="toggleProp(2,2)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">移动侦测</span>
+                                    <div class="toggle-switch" :class="propValues['4-3'] && 'on'" @click="toggleProp(4,3)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">ECO节能</span>
+                                    <div class="toggle-switch" :class="propValues['2-3'] && 'on'" @click="toggleProp(2,3)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">指示灯</span>
+                                    <div class="toggle-switch" :class="propValues['11-1'] && 'on'" @click="toggleProp(11,1)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row">
+                                    <span class="control-name">音量</span>
+                                    <div class="slider-wrap">
+                                        <input type="range" min="0" max="100" :value="propValues['12-1']||50" @change="setPropValue(12,1,Number($event.target.value))" class="range-slider">
+                                        <span class="slider-val" x-text="propValues['12-1']||'-'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== WATER PURIFIER TEMPLATE ====== -->
+                    <div x-show="currentDevice && (currentDevice.model||'').includes('waterpuri') && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">水质监测</div>
+                            <div class="sensor-dashboard">
+                                <div class="sensor-big-card">
+                                    <div class="sensor-big-value" x-text="propValues['3-1']||'--'"></div>
+                                    <div class="sensor-big-unit">ppm</div>
+                                    <div class="sensor-big-label">入水TDS</div>
+                                </div>
+                                <div class="sensor-big-card">
+                                    <div class="sensor-big-value" x-text="propValues['3-2']||'--'"></div>
+                                    <div class="sensor-big-unit">ppm</div>
+                                    <div class="sensor-big-label">出水TDS</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section">
+                            <div class="section-label">滤芯寿命</div>
+                            <div class="control-card">
+                                <div class="control-row readonly">
+                                    <span class="control-name">PP棉</span>
+                                    <span class="control-value" x-text="(propValues['4-1']||'--')+' 小时'"></span>
+                                </div>
+                                <div class="control-row readonly">
+                                    <span class="control-name">前置活性炭</span>
+                                    <span class="control-value" x-text="(propValues['5-1']||'--')+' 小时'"></span>
+                                </div>
+                                <div class="control-row readonly">
+                                    <span class="control-name">后置活性炭</span>
+                                    <span class="control-value" x-text="(propValues['6-1']||'--')+' 小时'"></span>
+                                </div>
+                                <div class="control-row readonly">
+                                    <span class="control-name">RO反渗透</span>
+                                    <span class="control-value" x-text="(propValues['7-1']||'--')+' 小时'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ====== WALL SWITCH (multi-channel) TEMPLATE ====== -->
+                    <div x-show="currentDevice && (currentDevice.model||'').includes('ctrl_ln') && currentDevice.spec">
+                        <div class="control-section">
+                            <div class="section-label">开关控制</div>
+                            <div class="control-card">
+                                <div class="control-row">
+                                    <span class="control-name">左键</span>
+                                    <div class="toggle-switch" :class="propValues['2-1'] && 'on'" @click="toggleProp(2,1)"><div class="toggle-knob"></div></div>
+                                </div>
+                                <div class="control-row" x-show="hasSpec(3,1)">
+                                    <span class="control-name">右键</span>
+                                    <div class="toggle-switch" :class="propValues['3-1'] && 'on'" @click="toggleProp(3,1)"><div class="toggle-knob"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-section" x-show="propValues['4-1']!==undefined">
+                            <div class="section-label">功耗</div>
+                            <div class="control-card">
+                                <div class="control-row readonly">
+                                    <span class="control-name">当前功率</span>
+                                    <span class="control-value" x-text="(propValues['4-1']||'--')+' W'"></span>
                                 </div>
                             </div>
                         </div>

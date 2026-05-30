@@ -67,6 +67,17 @@ body {
 .tab-bar button span { font-size:10px; font-weight:500; }
 @media(min-width:1024px) { .tab-bar { display:none; } }
 
+/* ===== PAGE HEADER ===== */
+.page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.page-header .page-title { margin-bottom:0; }
+.header-actions { display:flex; align-items:center; gap:10px; }
+.status-badge { font-size:11px; font-weight:500; padding:4px 10px; border-radius:10px; }
+.status-badge.green { background:rgba(50,186,200,0.1); color:var(--brand); }
+.btn-refresh { width:36px; height:36px; border:none; border-radius:50%; background:rgba(0,0,0,0.04); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all var(--transition); }
+.btn-refresh:hover { background:rgba(0,0,0,0.08); }
+.btn-refresh.spinning svg { animation:spin 0.6s linear; }
+@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
 /* ===== PAGE TITLE ===== */
 .page-title { font-size:34px; font-weight:700; margin-bottom:20px; letter-spacing:-0.5px; }
 

@@ -172,20 +172,30 @@ class MiotProxy:
 # ── 共享单例 ───────────────────────────────────────
 
 _shared_proxy: MiotProxy | None = None
+_proxy_lock: asyncio.Lock | None = None
+
+
+def _get_lock():
+    global _proxy_lock
+    if _proxy_lock is None:
+        _proxy_lock = asyncio.Lock()
+    return _proxy_lock
 
 
 async def get_shared_proxy() -> MiotProxy:
-    """获取全局共享的 MiotProxy 实例（懒初始化）。"""
+    """获取全局共享的 MiotProxy 实例（懒初始化，加锁防并发）。"""
     global _shared_proxy
-    if _shared_proxy is None or not _shared_proxy.is_ready:
-        _shared_proxy = MiotProxy()
-        await _shared_proxy.init()
+    async with _get_lock():
+        if _shared_proxy is None or not _shared_proxy.is_ready:
+            _shared_proxy = MiotProxy()
+            await _shared_proxy.init()
     return _shared_proxy
 
 
 async def reset_shared_proxy():
     """重置共享 proxy（登录后需要重新连接）。"""
     global _shared_proxy
-    if _shared_proxy:
-        await _shared_proxy.deinit()
-    _shared_proxy = None
+    async with _get_lock():
+        if _shared_proxy:
+            await _shared_proxy.deinit()
+        _shared_proxy = None

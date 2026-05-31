@@ -85,8 +85,10 @@ async def start_persistent_callback_server():
             from ..lib.auth import MIoTAuth
             from ..lib.proxy import reset_shared_proxy
             auth = MIoTAuth()
+            # gen_oauth_url 需要先调用来初始化 client（获取 device_id）
             await auth.gen_oauth_url()
             await auth.exchange_code(code)
+            # 重置 proxy 以便下次请求时用新 token 重建连接
             await reset_shared_proxy()
             _LOGGER.info("OAuth 登录成功（:443 常驻回调）")
             return web.Response(text=SUCCESS_HTML, content_type="text/html")

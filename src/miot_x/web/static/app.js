@@ -1,6 +1,6 @@
 function app() {
     return {
-        loggedIn: false, loginLoading: false, loginError: '', manualMode: false, callbackUrl: '',
+        loggedIn: false, loginLoading: false, loginError: '', manualMode: false, callbackUrl: '', loginStep: 0, autoCallback: false, authUrl: '', codeDetected: false,
         tab: 'home', currentDevice: null, propValues: {},
         devices: [], scenes: [], homes: [], allHomes: [], selectedHomes: [],
         roomFilter: '', typeFilter: '', pollTimer: null,
@@ -68,24 +68,33 @@ function app() {
             try { const r = await fetch('/api/auth/status'); const d = await r.json(); this.loggedIn = d.logged_in; } catch { this.loggedIn = false; }
         },
         async startLogin() {
-            this.loginLoading = true; this.loginError = ''; this.manualMode = false;
+            this.loginError = ''; this.loginStep = 1;
             try {
                 const r = await fetch('/api/auth/start', { method: 'POST' }); const d = await r.json();
-                window.open(d.auth_url, '_blank');
+                this.authUrl = d.auth_url;
+                this.autoCallback = d.auto_callback;
                 if (d.auto_callback) {
-                    this.pollTimer = setInterval(async () => { await this.checkAuth(); if (this.loggedIn) { clearInterval(this.pollTimer); this.loginLoading = false; await this.loadData(); this.startAutoRefresh(); } }, 2000);
-                    setTimeout(() => { if (!this.loggedIn) { clearInterval(this.pollTimer); this.loginLoading = false; this.manualMode = true; } }, 120000);
-                } else { this.loginLoading = false; this.manualMode = true; }
-            } catch (e) { this.loginLoading = false; this.loginError = e.message; }
+                    window.open(d.auth_url, '_blank');
+                    this.pollTimer = setInterval(async () => {
+                        await this.checkAuth();
+                        if (this.loggedIn) { clearInterval(this.pollTimer); await this.loadData(); this.startAutoRefresh(); }
+                    }, 2000);
+                    setTimeout(() => { if (!this.loggedIn && this.loginStep === 1) { clearInterval(this.pollTimer); this.loginStep = 2; } }, 60000);
+                }
+            } catch (e) { this.loginError = e.message; this.loginStep = 0; }
+        },
+        autoDetectCode() {
+            this.codeDetected = /[?&]code=([^&]+)/.test(this.callbackUrl);
         },
         async submitCallback() {
             const m = this.callbackUrl.match(/[?&]code=([^&]+)/);
-            if (!m) { this.loginError = 'URL 中未找到授权码'; return; }
+            if (!m) { this.loginError = '未能识别授权码，请确认粘贴了完整地址'; return; }
+            this.loginError = '';
             try {
                 const r = await fetch('/api/auth/callback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: m[1] }) });
                 const d = await r.json();
-                if (d.success) { this.loggedIn = true; this.manualMode = false; await this.loadData(); }
-                else { this.loginError = d.error || '失败'; }
+                if (d.success) { this.loggedIn = true; this.loginStep = 0; await this.loadData(); this.startAutoRefresh(); }
+                else { this.loginError = d.error || '登录失败，请重试'; }
             } catch (e) { this.loginError = e.message; }
         },
         async logout() { await fetch('/api/auth/logout', { method: 'POST' }); this.loggedIn = false; this.devices = []; this.scenes = []; this.homes = []; this.currentDevice = null; },

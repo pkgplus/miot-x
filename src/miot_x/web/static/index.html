@@ -35,18 +35,66 @@
     <div x-show="!loggedIn && !showHomeGuide" class="login-page">
         <div class="login-card">
             <div class="login-icon">
-                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#32BAC8" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
-            <h1 class="login-title">智能家居</h1>
+            <h1 class="login-title">智能家居控制</h1>
             <p class="login-subtitle">使用小米账号登录以控制你的设备</p>
-            <button @click="startLogin()" :disabled="loginLoading" class="btn-login">
-                <span x-show="!loginLoading">登录小米账号</span>
-                <span x-show="loginLoading">等待授权...</span>
-            </button>
-            <div x-show="manualMode" class="manual-input">
-                <input x-model="callbackUrl" type="text" placeholder="粘贴回调 URL..." class="input-field">
-                <button @click="submitCallback()" class="btn-submit">提交</button>
+
+            <!-- Step 1: 未开始 -->
+            <div x-show="loginStep===0">
+                <button @click="startLogin()" class="btn-login">登录小米账号</button>
             </div>
+
+            <!-- Step 2: 等待自动回调（本机模式） -->
+            <div x-show="loginStep===1 && autoCallback">
+                <div class="login-waiting">
+                    <div class="waiting-spinner"></div>
+                    <p>正在等待授权完成...</p>
+                    <p class="login-hint">请在弹出的窗口中完成小米账号登录</p>
+                </div>
+                <button @click="loginStep=2" class="btn-link">窗口没弹出？手动操作 →</button>
+            </div>
+
+            <!-- Step 2: 引导手动回调（远程模式） -->
+            <div x-show="loginStep===1 && !autoCallback || loginStep===2">
+                <div class="login-steps">
+                    <div class="step-item">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <p class="step-title">打开登录页面</p>
+                            <a :href="authUrl" target="_blank" class="btn-open-oauth">
+                                前往小米登录 →
+                            </a>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <p class="step-title">完成登录</p>
+                            <p class="step-desc">在打开的页面中登录你的小米账号。登录后页面会跳转并显示"无法连接"——这是正常的。</p>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <p class="step-title">粘贴回调地址</p>
+                            <p class="step-desc">复制浏览器地址栏中的完整网址，粘贴到下方：</p>
+                            <div class="callback-input-wrap">
+                                <input x-model="callbackUrl" type="text"
+                                       placeholder="https://127.0.0.1/?code=..."
+                                       @input="autoDetectCode()"
+                                       @paste="setTimeout(()=>autoDetectCode(), 100)"
+                                       class="input-field callback-input">
+                                <div x-show="codeDetected" class="code-detected">✓ 已识别</div>
+                            </div>
+                            <button @click="submitCallback()" :disabled="!codeDetected" class="btn-submit">
+                                完成登录
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <p x-show="loginError" x-text="loginError" class="login-error"></p>
         </div>
     </div>

@@ -2,10 +2,10 @@ function app() {
     return {
         loggedIn: false, loginLoading: false, loginError: '', manualMode: false, callbackUrl: '',
         tab: 'home', currentDevice: null, propValues: {},
-        devices: [], scenes: [], homes: [], selectedHomes: [],
+        devices: [], scenes: [], homes: [], allHomes: [], selectedHomes: [],
         roomFilter: '', typeFilter: '', pollTimer: null,
         refreshing: false, xiaozhiConnected: false, showHomeGuide: false,
-        autoRefreshTimer: null,
+        autoRefreshTimer: null, homesSaving: false, homesSaved: false,
 
         get rooms() {
             const r = new Set(this.devices.map(d => d.room).filter(Boolean));
@@ -100,7 +100,15 @@ function app() {
             try { const r = await fetch('/api/devices'); if (!r.ok) return; const d = await r.json(); this.devices = (d.devices || []).map(dev => ({ ...dev, _on: false })); } catch {}
         },
         async loadScenes() { try { const r = await fetch('/api/scenes'); if (!r.ok) return; const d = await r.json(); this.scenes = d.scenes || []; } catch {} },
-        async loadHomes() { try { const r = await fetch('/api/homes'); if (!r.ok) return; const d = await r.json(); this.homes = d.homes || []; this.selectedHomes = d.selected || []; } catch {} },
+        async loadHomes() {
+            try {
+                const r = await fetch('/api/homes'); if (!r.ok) return;
+                const d = await r.json();
+                this.allHomes = d.homes || [];
+                this.homes = d.homes || [];
+                this.selectedHomes = d.selected || [];
+            } catch {}
+        },
 
         async openDevice(dev) {
             this.currentDevice = { ...dev, spec: null }; this.propValues = {};
@@ -145,7 +153,17 @@ function app() {
         async saveHomes() {
             const ids = this.selectedHomes.length > 0 ? this.selectedHomes : null;
             await fetch('/api/homes/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ home_ids: ids }) });
-            await this.loadData();
+            await this.loadDevices();
+            await this.loadScenes();
+        },
+        async saveHomesWithFeedback() {
+            this.homesSaving = true; this.homesSaved = false;
+            await this.saveHomes();
+            this.homesSaving = false; this.homesSaved = true;
+            setTimeout(() => { this.homesSaved = false; }, 2000);
+        },
+        confirmLogout() {
+            if (confirm('确定要退出登录吗？')) this.logout();
         },
 
         // Device type detection

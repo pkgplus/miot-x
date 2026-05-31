@@ -167,14 +167,23 @@ body {
 .settings-row:last-child { border-bottom:none; }
 .settings-row span:first-child { font-size:16px; }
 .settings-value { font-size:15px; color:var(--text3); }
-.settings-section-title { padding:16px 20px 8px; font-size:13px; font-weight:600; color:var(--text3); text-transform:uppercase; }
-.settings-check { display:flex; align-items:center; gap:10px; padding:12px 20px; border-bottom:0.5px solid var(--separator); cursor:pointer; }
+.settings-section-title { padding:16px 20px 4px; font-size:13px; font-weight:600; color:var(--text3); text-transform:uppercase; }
+.settings-hint { padding:0 20px 12px; font-size:13px; color:var(--text3); line-height:1.5; }
+.settings-check { display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:0.5px solid var(--separator); cursor:pointer; transition:background var(--transition); }
 .settings-check:last-of-type { border-bottom:none; }
-.settings-check input { width:20px; height:20px; accent-color:var(--blue); }
-.settings-check span:nth-child(2) { font-size:16px; flex:1; }
+.settings-check:hover { background:rgba(0,0,0,0.02); }
+.settings-check.checked { background:rgba(50,186,200,0.04); }
+.settings-check input { width:20px; height:20px; accent-color:var(--brand); flex-shrink:0; }
+.check-info { flex:1; display:flex; flex-direction:column; gap:2px; }
+.check-name { font-size:16px; font-weight:500; }
 .check-sub { font-size:13px; color:var(--text3); }
-.btn-save { display:block; margin:16px 20px; padding:12px; border:none; border-radius:12px; background:var(--brand); color:white; font-size:16px; font-weight:600; width:calc(100% - 40px); cursor:pointer; }
-.btn-logout { width:100%; padding:16px; border:none; background:none; color:var(--red); font-size:16px; font-weight:500; cursor:pointer; }
+.check-mark { color:var(--brand); font-weight:600; font-size:18px; flex-shrink:0; }
+.settings-actions { padding:16px 20px; }
+.btn-save { display:block; width:100%; padding:14px; border:none; border-radius:12px; background:var(--brand); color:white; font-size:16px; font-weight:600; cursor:pointer; transition:all var(--transition); }
+.btn-save:hover { opacity:0.9; }
+.btn-save:disabled { opacity:0.6; cursor:not-allowed; }
+.btn-logout { width:100%; padding:16px; border:none; background:none; color:var(--red); font-size:16px; font-weight:500; cursor:pointer; transition:color var(--transition); }
+.btn-logout:hover { color:#CC2B22; }
 
 /* ===== DEVICE DETAIL ===== */
 .detail-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }

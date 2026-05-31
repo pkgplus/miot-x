@@ -155,30 +155,61 @@
             <!-- === SETTINGS TAB === -->
             <section x-show="tab==='settings' && !currentDevice">
                 <h1 class="page-title">设置</h1>
+
+                <!-- 连接信息 -->
                 <div class="settings-card">
                     <div class="settings-row">
-                        <span>账号</span><span class="settings-value">已登录</span>
+                        <span>账号状态</span>
+                        <span class="settings-value" style="color:#32BAC8">已登录</span>
                     </div>
                     <div class="settings-row">
-                        <span>设备数量</span><span class="settings-value" x-text="devices.length + ' 台'"></span>
+                        <span>设备数量</span>
+                        <span class="settings-value" x-text="devices.length + ' 台设备'"></span>
                     </div>
                     <div class="settings-row">
-                        <span>服务状态</span><span class="settings-value" style="color:#32BAC8">已连接</span>
+                        <span>服务连接</span>
+                        <span class="settings-value" style="color:#32BAC8">正常</span>
+                    </div>
+                    <div class="settings-row" x-show="xiaozhiConnected">
+                        <span>小智平台</span>
+                        <span class="settings-value" style="color:#32BAC8">已桥接</span>
                     </div>
                 </div>
+
+                <!-- 家庭切换 -->
                 <div class="settings-card" style="margin-top:12px">
-                    <div class="settings-section-title">家庭选择</div>
-                    <template x-for="home in homes" :key="home.home_id">
-                        <label class="settings-check">
+                    <div class="settings-section-title">家庭管理</div>
+                    <p class="settings-hint">选择要控制的家庭，支持多选。取消全部勾选则显示所有家庭设备。</p>
+                    <template x-for="home in allHomes" :key="home.home_id">
+                        <label class="settings-check" :class="selectedHomes.includes(home.home_id) && 'checked'">
                             <input type="checkbox" :value="home.home_id" x-model="selectedHomes">
-                            <span x-text="home.name"></span>
-                            <span class="check-sub" x-text="home.room_count + '个房间'"></span>
+                            <div class="check-info">
+                                <span class="check-name" x-text="home.name"></span>
+                                <span class="check-sub" x-text="home.room_count + ' 个房间'"></span>
+                            </div>
+                            <span class="check-mark" x-show="selectedHomes.includes(home.home_id)">✓</span>
                         </label>
                     </template>
-                    <button @click="saveHomes()" class="btn-save">保存</button>
+                    <div class="settings-actions">
+                        <button @click="saveHomesWithFeedback()" class="btn-save" :disabled="homesSaving">
+                            <span x-show="!homesSaving && !homesSaved">保存并刷新</span>
+                            <span x-show="homesSaving">保存中...</span>
+                            <span x-show="homesSaved">✓ 已保存</span>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- 退出 -->
                 <div class="settings-card" style="margin-top:12px">
-                    <button @click="logout()" class="btn-logout">退出登录</button>
+                    <button @click="confirmLogout()" class="btn-logout">退出登录</button>
+                </div>
+
+                <!-- 关于 -->
+                <div class="settings-card" style="margin-top:12px">
+                    <div class="settings-row">
+                        <span>版本</span>
+                        <span class="settings-value">miot-x v0.2.1</span>
+                    </div>
                 </div>
             </section>
 

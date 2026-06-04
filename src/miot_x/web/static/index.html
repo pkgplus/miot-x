@@ -552,11 +552,11 @@
                             <div class="section-label">开关控制</div>
                             <div class="control-card">
                                 <div class="control-row">
-                                    <span class="control-name">左键</span>
+                                    <span class="control-name" x-text="getChannelName(2)"></span>
                                     <div class="toggle-switch" :class="propValues['2-1'] && 'on'" @click="toggleProp(2,1)"><div class="toggle-knob"></div></div>
                                 </div>
                                 <div class="control-row" x-show="hasSpec(3,1)">
-                                    <span class="control-name">右键</span>
+                                    <span class="control-name" x-text="getChannelName(3)"></span>
                                     <div class="toggle-switch" :class="propValues['3-1'] && 'on'" @click="toggleProp(3,1)"><div class="toggle-knob"></div></div>
                                 </div>
                             </div>

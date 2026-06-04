@@ -283,5 +283,15 @@ function app() {
             const t = this.getDeviceType(dev);
             return t === 'light' || t === 'fan' || t === 'climate' || t === 'switch' || t === 'default';
         },
+
+        // ── 通道名称（来自米家 sub_devices） ──
+        getChannelName(siid) {
+            const sub = this.currentDevice?.sub_devices;
+            if (sub) {
+                const key = 's' + siid;
+                if (sub[key]?.name) return sub[key].name;
+            }
+            return siid === 2 ? '左键' : siid === 3 ? '右键' : '通道 ' + siid;
+        },
     };
 }

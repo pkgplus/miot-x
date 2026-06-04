@@ -98,9 +98,18 @@ async def get_device(request: Request):
         except Exception as e:
             _log.error("spec parse error: %s", e)
 
+    # 提取子设备名称（双键开关等的通道别名）
+    sub_devices = {}
+    try:
+        raw = dev.model_dump() if hasattr(dev, 'model_dump') else {}
+        for k, v in raw.get('sub_devices', {}).items():
+            sub_devices[k] = {'name': v.get('name', ''), 'did': v.get('did', '')}
+    except Exception:
+        pass
+
     return JSONResponse({
         "did": dev.did, "name": dev.name, "model": dev.model,
-        "online": dev.online, "spec": spec,
+        "online": dev.online, "spec": spec, "sub_devices": sub_devices,
     })
 
 

@@ -60,6 +60,7 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
         enable_xiaozhi: 是否启用小智 WebSocket 桥接。
         enable_mcp: 是否挂载 MCP endpoint。
     """
+    mcp_app = None  # 在 lifespan 闭包捕获前初始化，避免 NameError
 
     @asynccontextmanager
     async def lifespan(app):
@@ -80,11 +81,15 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
         # 启动小智桥接
         xiaozhi_task = None
         if enable_xiaozhi:
-            from ..mcp.server import mcp as mcp_instance
             xiaozhi_task = asyncio.create_task(_xiaozhi_with_status(mcp_instance))
             _LOGGER.info("小智桥接已启动")
 
-        yield
+        # 嵌套 MCP app 的 lifespan（Starlette Mount 不会自动传递子 app 的 lifespan）
+        if enable_mcp and mcp_app is not None:
+            async with mcp_app.lifespan(mcp_app):
+                yield
+        else:
+            yield
 
         if xiaozhi_task:
             xiaozhi_task.cancel()
@@ -105,7 +110,7 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
     if enable_mcp:
         try:
             from ..mcp.server import mcp as mcp_instance
-            mcp_app = mcp_instance.http_app(path="/mcp", transport="streamable-http")
+            mcp_app = mcp_instance.http_app(path="/", transport="streamable-http")
             routes.append(Mount("/mcp", app=mcp_app))
             _LOGGER.info("MCP endpoint 已挂载 (/mcp)")
         except Exception as e:

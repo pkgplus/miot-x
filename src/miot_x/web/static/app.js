@@ -19,10 +19,36 @@ function app() {
             return this.devices.filter(d => this.getDeviceType(d) === this.typeFilter);
         },
 
+        // ── URL 路由 ──────────────────────────────────
+        routeFromURL() {
+            const p = window.location.pathname;
+            if (p === '/' || p === '/index.html') {
+                this.tab = 'home'; this.currentDevice = null;
+            } else if (p === '/devices') {
+                this.tab = 'devices'; this.currentDevice = null;
+            } else if (p === '/scenes') {
+                this.tab = 'scenes'; this.currentDevice = null;
+            } else if (p === '/settings') {
+                this.tab = 'settings'; this.currentDevice = null;
+            } else if (p.startsWith('/device/')) {
+                const did = p.split('/device/')[1];
+                if (did && this.devices.length > 0) {
+                    const dev = this.devices.find(d => d.did === did);
+                    if (dev) this.openDevice(dev, false);
+                }
+            }
+        },
+        pushURL(url) {
+            if (window.location.pathname !== url) {
+                history.pushState(null, '', url);
+            }
+        },
+
         async init() {
             await this.checkAuth();
             if (this.loggedIn) {
                 await this.loadData();
+                this.routeFromURL();
                 this.checkXiaozhi();
                 this.startAutoRefresh();
             }
@@ -39,6 +65,8 @@ function app() {
                     if (this.loggedIn) { await this.loadData(); this.startAutoRefresh(); }
                 }
             });
+            // 浏览器前进/后退
+            window.addEventListener('popstate', () => { this.routeFromURL(); });
         },
 
         startAutoRefresh() {
@@ -62,7 +90,17 @@ function app() {
             await this.loadDevices();
         },
 
-        navigate(t) { this.tab = t; this.currentDevice = null; },
+        navigate(t, push) {
+            if (push !== false) this.pushURL('/' + t);
+            this.tab = t; this.currentDevice = null;
+        },
+        goBack() {
+            if (history.length > 1) {
+                history.back();
+            } else {
+                this.navigate('home');
+            }
+        },
 
         async checkAuth() {
             try { const r = await fetch('/api/auth/status'); const d = await r.json(); this.loggedIn = d.logged_in; } catch { this.loggedIn = false; }
@@ -97,7 +135,7 @@ function app() {
                 else { this.loginError = d.error || '登录失败，请重试'; }
             } catch (e) { this.loginError = e.message; }
         },
-        async logout() { await fetch('/api/auth/logout', { method: 'POST' }); this.loggedIn = false; this.devices = []; this.scenes = []; this.homes = []; this.currentDevice = null; },
+        async logout() { await fetch('/api/auth/logout', { method: 'POST' }); this.loggedIn = false; this.devices = []; this.scenes = []; this.homes = []; this.currentDevice = null; history.replaceState(null, '', '/'); },
 
         async loadData() {
             await Promise.all([this.loadDevices(), this.loadScenes(), this.loadHomes()]);
@@ -119,7 +157,8 @@ function app() {
             } catch {}
         },
 
-        async openDevice(dev) {
+        async openDevice(dev, push) {
+            if (push !== false) this.pushURL('/device/' + dev.did);
             this.currentDevice = { ...dev, spec: null }; this.propValues = {};
             try { const r = await fetch(`/api/devices/${dev.did}`); if (!r.ok) return; const d = await r.json(); this.currentDevice = d; await this.loadPropValues(); } catch {}
         },

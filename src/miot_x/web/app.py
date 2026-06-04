@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -116,9 +116,18 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
         except Exception as e:
             _LOGGER.warning("MCP 挂载失败: %s", e)
 
-    # 静态文件 (Web UI)
-    if _STATIC_DIR.exists():
-        routes.append(Mount("/", app=StaticFiles(directory=str(_STATIC_DIR), html=True)))
+    # SPA fallback — 静态文件优先，未匹配路由返回 index.html
+    async def _spa(request):
+        path = request.path_params.get("path", "").lstrip("/") or "index.html"
+        file_path = _STATIC_DIR / path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        index_path = _STATIC_DIR / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        return PlainTextResponse("Not Found", status_code=404)
+
+    routes.append(Route("/{path:path}", _spa, methods=["GET"]))
 
     app = Starlette(routes=routes, lifespan=lifespan)
     return app

@@ -193,12 +193,9 @@ _MODEL_MAP: dict[str, DeviceMapping] = {
     # ── 扫地机器人 ──
     "rockrobo.vacuum": DeviceMapping(service_name="Switch"),
     # ── 音箱 ──
-    # Speaker 服务（HAP 113）：Mute + Active(手动添加)+ Volume
-    # category=CATEGORY_SPEAKER(26) 让家庭 App 显示为音箱图标
+    # HomeKit 不支持第三方 Speaker 服务，改用 Switch（开关静音/取消静音）
     "xiaomi.wifispeaker": DeviceMapping(
-        service_name="Speaker",
-        volume_siid=2, volume_piid=2,
-        mute_siid=2, mute_piid=3,
+        service_name="Switch",
     ),
     # ── 门铃 ──
     # StatelessProgrammableSwitch 的 ProgrammableSwitchEvent 初始化阶段无法设值，

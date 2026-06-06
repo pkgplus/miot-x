@@ -155,13 +155,13 @@ async def device_on(device_name: str) -> dict:
     dev = _find_device(device_name)
     if not dev:
         return {"error": f"未找到设备: {device_name}"}
-    result = await _proxy.set_prop(dev.did, siid=2, piid=1, value=True)
+    result = await _proxy.set_power(dev.did, dev.model, True)
     return {"did": dev.did, "name": dev.name, "result": result}
 
 
 @mcp.tool()
 async def device_off(device_name: str) -> dict:
-    """关闭指定设备（通用开关 siid=2, piid=1）。
+    """关闭指定设备（通用开关 siid=2, piid=1；IR 虚拟设备用 action）。
 
     Args:
         device_name: 设备名称或 did（支持模糊匹配）。
@@ -170,7 +170,7 @@ async def device_off(device_name: str) -> dict:
     dev = _find_device(device_name)
     if not dev:
         return {"error": f"未找到设备: {device_name}"}
-    result = await _proxy.set_prop(dev.did, siid=2, piid=1, value=False)
+    result = await _proxy.set_power(dev.did, dev.model, False)
     return {"did": dev.did, "name": dev.name, "result": result}
 
 
@@ -185,6 +185,10 @@ async def device_toggle(device_name: str) -> dict:
     dev = _find_device(device_name)
     if not dev:
         return {"error": f"未找到设备: {device_name}"}
+    # IR 虚拟设备：直接发送开机（无法读取状态）
+    if dev.model.startswith("miir."):
+        result = await _proxy.action(dev.did, siid=2, aiid=5)
+        return {"did": dev.did, "name": dev.name, "action": "toggle_ir", "result": result}
     current = await _proxy.get_prop(dev.did, siid=2, piid=1)
     new_val = not current if isinstance(current, bool) else True
     result = await _proxy.set_prop(dev.did, siid=2, piid=1, value=new_val)

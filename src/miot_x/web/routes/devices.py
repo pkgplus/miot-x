@@ -118,7 +118,11 @@ async def device_on(request: Request):
     proxy, err = await _get_proxy_or_error()
     if err:
         return err
-    result = await proxy.set_prop(did, siid=2, piid=1, value=True)
+    # 获取设备 model 以判断是否为 IR 虚拟设备
+    devs = await proxy.get_devices()
+    dev = devs.get(did)
+    model = dev.model if dev else ""
+    result = await proxy.set_power(did, model, True)
     return JSONResponse({"did": did, "action": "on", "result": result})
 
 
@@ -127,7 +131,10 @@ async def device_off(request: Request):
     proxy, err = await _get_proxy_or_error()
     if err:
         return err
-    result = await proxy.set_prop(did, siid=2, piid=1, value=False)
+    devs = await proxy.get_devices()
+    dev = devs.get(did)
+    model = dev.model if dev else ""
+    result = await proxy.set_power(did, model, False)
     return JSONResponse({"did": did, "action": "off", "result": result})
 
 

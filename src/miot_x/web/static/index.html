@@ -606,10 +606,10 @@
                         <div>
                             <template x-for="service in currentDevice.spec.services" :key="service.iid">
                                 <div class="control-section" x-show="service.properties.filter(p=>p.access&&(p.access.includes('write')||p.access.includes('read'))).length > 0">
-                                    <div class="section-label" x-text="service.name"></div>
+                                    <div class="section-label" x-text="(currentDevice.model||'').includes('ctrl_ln') ? getChannelName(service.iid) : service.name"></div>
                                     <div class="control-card">
                                         <template x-for="prop in service.properties.filter(p=>p.access&&p.access.includes('write'))" :key="service.iid+'-'+prop.iid">
-                                            <div class="control-row">
+                                            <div class="control-row" x-show="!((currentDevice.model||'').includes('ctrl_ln') && (service.iid===2||service.iid===3) && prop.iid===1 && prop.format==='bool')">
                                                 <span class="control-name" x-text="prop.name"></span>
                                                 <div class="control-widget">
                                                     <!-- Bool toggle -->

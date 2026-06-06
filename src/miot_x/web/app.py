@@ -19,10 +19,17 @@ _STATIC_DIR = Path(__file__).parent / "static"
 
 _xiaozhi_connected = False
 
+_homekit_bridge = None
+
 
 def set_xiaozhi_status(connected: bool):
     global _xiaozhi_connected
     _xiaozhi_connected = connected
+
+
+def set_homekit_bridge(bridge):
+    global _homekit_bridge
+    _homekit_bridge = bridge
 
 
 async def _status(request):
@@ -36,10 +43,28 @@ async def _status(request):
             device_count = len(devices)
         except Exception:
             pass
-    return JSONResponse({
+    result = {
         "connected": connected,
         "device_count": device_count,
         "xiaozhi_connected": _xiaozhi_connected,
+    }
+    if _homekit_bridge:
+        result["homekit"] = {
+            "paired": _homekit_bridge.is_paired,
+            "accessories": _homekit_bridge.get_accessories(),
+        }
+    return JSONResponse(result)
+
+
+async def _homekit_status(request):
+    """HomeKit 桥接状态。"""
+    if not _homekit_bridge:
+        return JSONResponse({"enabled": False})
+    return JSONResponse({
+        "enabled": True,
+        "paired": _homekit_bridge.is_paired,
+        "pin": _homekit_bridge.pin if not _homekit_bridge.is_paired else None,
+        "accessories": _homekit_bridge.get_accessories(),
     })
 
 
@@ -53,12 +78,13 @@ async def _xiaozhi_with_status(mcp_instance):
         set_xiaozhi_status(False)
 
 
-def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
+def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True, enable_homekit: bool = False):
     """创建统一 Starlette 应用。
 
     Args:
         enable_xiaozhi: 是否启用小智 WebSocket 桥接。
         enable_mcp: 是否挂载 MCP endpoint。
+        enable_homekit: 是否启动 HomeKit 桥接。
     """
     mcp_app = None  # 在 lifespan 闭包捕获前初始化，避免 NameError
 
@@ -71,9 +97,10 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
         await start_persistent_callback_server()
 
         # 尝试预连接 MIoT
+        proxy = None
         try:
             from ..lib.proxy import get_shared_proxy
-            await get_shared_proxy()
+            proxy = await get_shared_proxy()
             _LOGGER.info("MIoT 已连接")
         except Exception as e:
             _LOGGER.warning("MIoT 连接失败（将以离线模式运行）: %s", e)
@@ -84,13 +111,30 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
             xiaozhi_task = asyncio.create_task(_xiaozhi_with_status(mcp_instance))
             _LOGGER.info("小智桥接已启动")
 
-        # 嵌套 MCP app 的 lifespan（Starlette Mount 不会自动传递子 app 的 lifespan）
+        # 启动 HomeKit 桥接
+        homekit_bridge = None
+        if enable_homekit and proxy is not None:
+            try:
+                from ..homekit import MiotHomeKitBridge
+                homekit_bridge = MiotHomeKitBridge(proxy)
+                await homekit_bridge.start()
+                set_homekit_bridge(homekit_bridge)
+                _LOGGER.info("HomeKit 桥接已启动")
+            except Exception as e:
+                _LOGGER.error("HomeKit 桥接启动失败: %s", e)
+        elif enable_homekit:
+            _LOGGER.warning("HomeKit 桥接需要 MIoT 连接，跳过")
+
+        # 嵌套 MCP app 的 lifespan
         if enable_mcp and mcp_app is not None:
             async with mcp_app.lifespan(mcp_app):
                 yield
         else:
             yield
 
+        # 清理
+        if homekit_bridge:
+            await homekit_bridge.stop()
         if xiaozhi_task:
             xiaozhi_task.cancel()
         await stop_persistent_callback_server()
@@ -98,6 +142,7 @@ def create_app(enable_xiaozhi: bool = False, enable_mcp: bool = True):
     # API routes
     api_routes = [
         Route("/status", _status, methods=["GET"]),
+        Route("/homekit/status", _homekit_status, methods=["GET"]),
         *all_api_routes(),
     ]
 

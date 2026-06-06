@@ -153,8 +153,23 @@ class MiotProxy:
 
     async def action(self, did: str, siid: int, aiid: int, in_list: list = None):
         """执行设备动作。"""
-        param = MIoTActionParam(did=did, siid=siid, aiid=aiid, in_list=in_list or [])
+        param = MIoTActionParam(did=did, siid=siid, aiid=aiid, in_=in_list or [])
         return await self._client.http_client.action_async(param)
+
+    # ── 开关（自动适配 IR 虚拟设备）─────────────────
+
+    @staticmethod
+    def _is_ir_device(model: str) -> bool:
+        """判断是否为 IR 虚拟设备（需用 action 而非 set_prop 控制开关）。"""
+        return model.startswith("miir.")
+
+    async def set_power(self, did: str, model: str, on: bool):
+        """开关设备 — IR 虚拟设备用 action，普通设备用 set_prop。"""
+        if self._is_ir_device(model):
+            aiid = 5 if on else 6  # miot 电视 IR 标准: aiid=5 开机, aiid=6 关机
+            return await self.action(did, siid=2, aiid=aiid)
+        else:
+            return await self.set_prop(did, siid=2, piid=1, value=on)
 
     # ── 场景 ───────────────────────────────────────
 

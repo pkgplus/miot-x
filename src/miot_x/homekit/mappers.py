@@ -174,20 +174,13 @@ _MODEL_MAP: dict[str, DeviceMapping] = {
     # ── 无线开关/移动开关 ──
     "lumi.sensor_switch": DeviceMapping(service_name="Switch"),
     # ── 红外遥控虚拟设备 ──
+    # HomeKit Bridge 模式下 Television 服务不支持遥控器（Apple 限制：TV 必须独立配件）
+    # 降级为 Switch 服务，通过 IR action 控制开关机
     "miir.tv": DeviceMapping(
-        service_name="Television",
-        extra_services=["TelevisionSpeaker"],
-        volume_siid=2, volume_piid=1,
+        service_name="Switch",
         actions={
             "power_on": (2, 5),
             "power_off": (2, 6),
-            "volume_up": (2, 4),
-            "volume_down": (2, 3),
-            "channel_up": (2, 2),
-            "channel_down": (2, 1),
-            "mute_on": (2, 7),
-            "mute_off": (2, 8),
-            "input_source": (2, 9),
         },
     ),
     # ── 扫地机器人 ──

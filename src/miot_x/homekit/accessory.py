@@ -164,9 +164,12 @@ class MiotAccessory(Accessory):
         service = self._service_name
 
         if service in ("Lightbulb", "Switch", "Outlet", "Fan"):
-            # On characteristic
             char = svc.get_characteristic("On")
-            self._bind_char(char, "on")
+            # IR 设备用 action 控制开关
+            if self._map.actions and "power_on" in self._map.actions:
+                self._bind_active_via_action(char)
+            else:
+                self._bind_char(char, "on")
 
         elif service == "WindowCovering":
             char = svc.get_characteristic("TargetPosition")

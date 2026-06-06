@@ -12,7 +12,7 @@ from pyhap.accessory import Accessory
 from pyhap.const import CATEGORY_LIGHTBULB, CATEGORY_SWITCH, CATEGORY_OUTLET, \
     CATEGORY_FAN, CATEGORY_WINDOW_COVERING, CATEGORY_AIR_PURIFIER, \
     CATEGORY_THERMOSTAT, CATEGORY_SENSOR, CATEGORY_DOOR_LOCK, \
-    CATEGORY_TELEVISION
+    CATEGORY_TELEVISION, CATEGORY_SPEAKER
 from pyhap.loader import Loader
 
 from .mappers import DeviceMapping, get_mapping
@@ -36,6 +36,8 @@ _CATEGORY_MAP: dict[str, int] = {
     "ContactSensor": CATEGORY_SENSOR,
     "LockMechanism": CATEGORY_DOOR_LOCK,
     "Television": CATEGORY_TELEVISION,
+    "TelevisionSpeaker": CATEGORY_SPEAKER,
+    "Speaker": CATEGORY_SPEAKER,
 }
 
 
@@ -130,6 +132,31 @@ class MiotAccessory(Accessory):
             if char:
                 self._bind_char(char, "target_temp")
 
+        # 电视遥控器 RemoteKey（IR 设备）
+        if self._service_name == "Television" and self._map.actions:
+            rk = self._add_opt_char(svc, "RemoteKey")
+            if rk:
+                self._bind_remote_key(rk)
+
+        # 电视 InputSource（iOS 要求至少一个输入源才显示遥控器界面）
+        if self._service_name == "Television":
+            input_svc = self.add_preload_service("InputSource")
+            input_svc.configure_char("ConfiguredName", value=self.display_name)
+            input_svc.configure_char("InputSourceType", value=0)  # Other
+            input_svc.configure_char("IsConfigured", value=1)  # Configured
+            input_svc.configure_char("CurrentVisibilityState", value=0)  # Shown
+            # Identifier 在 HAP 规范中是必须的，但 pyhap 标记为 optional
+            ident = self._add_opt_char(input_svc, "Identifier")
+            if ident:
+                ident.set_value(1, should_notify=False)
+            svc.add_linked_service(input_svc)
+
+        # 音箱音量（可选）
+        if self._service_name in ("TelevisionSpeaker", "Speaker") and self._map.volume_siid is not None:
+            vol = self._add_opt_char(svc, "Volume")
+            if vol:
+                self._bind_char(vol, "volume")
+
         return svc
 
     def _bind_primary_char(self, svc):
@@ -147,7 +174,20 @@ class MiotAccessory(Accessory):
 
         elif service in ("AirPurifier", "HeaterCooler", "Television"):
             char = svc.get_characteristic("Active")
-            self._bind_char(char, "on")
+            if service == "Television" and self._map.actions and "power_on" in self._map.actions:
+                # IR 虚拟电视：用 action (aiid=5/6) 而非 set_prop 控制开关
+                self._bind_active_via_action(char)
+            else:
+                self._bind_char(char, "on")
+
+        elif service in ("TelevisionSpeaker", "Speaker"):
+            # Speaker / TelevisionSpeaker: Mute(静音) + Active(开关)
+            char = svc.get_characteristic("Mute")
+            self._bind_char(char, "mute")
+            # Active 是 TelevisionSpeaker 原生可选特性，手动添加
+            active = self._add_opt_char(svc, "Active")
+            if active:
+                self._bind_char(active, "on")
 
     # ── 传感器附加服务 ──────────────────────────────
 
@@ -172,6 +212,12 @@ class MiotAccessory(Accessory):
                 char = svc.get_characteristic("LockCurrentState")
                 self._bind_char(char, "lock")
 
+            elif service_name == "TelevisionSpeaker":
+                # Volume 是可选 characteristic，需要手动添加
+                vol = self._add_opt_char(svc, "Volume")
+                if vol:
+                    self._bind_char(vol, "volume")
+
             return svc
         except Exception as e:
             _LOGGER.warning("无法创建额外服务 %s: %s", service_name, e)
@@ -195,7 +241,7 @@ class MiotAccessory(Accessory):
             _LOGGER.debug("添加可选 characteristic %s 失败: %s", char_name, e)
         return None
 
-    def _bind_char(self, char, prop_kind: str):
+    def _bind_char(self, char, prop_kind: str, inverted: bool = False):
         """绑定 characteristic 到 miot 属性读写。
 
         prop_kind 映射到 DeviceMapping 中的 siid/piid 字段：
@@ -209,6 +255,8 @@ class MiotAccessory(Accessory):
         - 'target_temp' → target_temp_siid / target_temp_piid
         - 'motion'   → motion_siid / motion_piid
         - 'contact'  → contact_siid / contact_piid
+
+        inverted: 反转 HomeKit 值（如 Mute → on: True=关/False=开）
         """
         siid_key = f"{prop_kind}_siid"
         piid_key = f"{prop_kind}_piid"
@@ -221,19 +269,23 @@ class MiotAccessory(Accessory):
             return
 
         # 写回调：HAP-python 的 setter_callback 是同步的，用 create_task 调度异步写
-        char.setter_callback = self._make_setter(siid, piid, prop_kind)
+        char.setter_callback = self._make_setter(siid, piid, prop_kind, inverted)
 
         # 读回调：HAP-python v5 的 getter_callback 是同步的，不支持 async。
         # 传感器值通过轮询更新，控制设备通过 _get_initial 设置默认值。
         # 不设置 getter_callback，避免 "coroutine is not numeric" 错误。
 
-    def _make_setter(self, siid: int, piid: int, prop_kind: str):
+    def _make_setter(self, siid: int, piid: int, prop_kind: str, inverted: bool = False):
         """创建写回调 — HomeKit 修改值 → miot set_prop（同步调度异步任务）。"""
 
         def setter(value):
             if not self._dev.online:
                 _LOGGER.warning("设备 %s 离线，跳过写入", self._dev.name)
                 return
+
+            # 反转值（如 Speaker Mute: True=静音→miot关, False=播放→miot开）
+            if inverted:
+                value = not value
 
             miot_value = self._to_miot_value(prop_kind, value)
             if miot_value is None:
@@ -271,6 +323,81 @@ class MiotAccessory(Accessory):
 
         return getter
 
+    # ── 电视遥控器 (RemoteKey → IR Action) ──────────
+
+    # HomeKit RemoteKey 值 → IR 动作名映射
+    _REMOTE_KEY_MAP: dict[int, str] = {
+        4: "channel_up",      # ArrowUp
+        5: "channel_down",    # ArrowDown
+        6: "volume_down",     # ArrowLeft
+        7: "volume_up",       # ArrowRight
+        8: "input_source",    # Select
+        11: "mute_toggle",    # PlayPause
+    }
+
+    _mute_state: bool = False  # 追踪静音状态
+
+    def _bind_active_via_action(self, char):
+        """绑定 Active → IR 电源 action（IR 虚拟设备用 action 而非 set_prop）。"""
+        on_siid, on_aiid = self._map.actions.get("power_on", (None, None))
+        off_siid, off_aiid = self._map.actions.get("power_off", (None, None))
+
+        def active_setter(value):
+            aiid = on_aiid if value else off_aiid
+            siid = on_siid if value else off_siid
+            if siid is None or aiid is None:
+                return
+
+            async def _do_action():
+                try:
+                    result = await self._proxy.action(
+                        self._dev.did, siid=siid, aiid=aiid, in_list=[]
+                    )
+                    _LOGGER.info(
+                        "HomeKit IR Power → miot: %s %s → %s",
+                        self._dev.name, "on" if value else "off", result,
+                    )
+                except Exception as e:
+                    _LOGGER.error("IR power %s 失败: %s",
+                                  "on" if value else "off", e)
+
+            asyncio.create_task(_do_action())
+
+        char.setter_callback = active_setter
+
+    def _bind_remote_key(self, char):
+        """绑定 RemoteKey → IR 动作（同步调度异步任务）。"""
+
+        def remote_key_setter(value):
+            action_name = self._REMOTE_KEY_MAP.get(value)
+            if not action_name:
+                return
+
+            # 静音是 toggle：根据当前状态选择开/关
+            if action_name == "mute_toggle":
+                self._mute_state = not self._mute_state
+                action_name = "mute_on" if self._mute_state else "mute_off"
+
+            siid, aiid = self._map.actions.get(action_name, (None, None))
+            if siid is None:
+                return
+
+            async def _do_action():
+                try:
+                    result = await self._proxy.action(
+                        self._dev.did, siid=siid, aiid=aiid, in_list=[]
+                    )
+                    _LOGGER.info(
+                        "HomeKit RemoteKey → IR: %s key=%d action=%s → %s",
+                        self._dev.name, value, action_name, result,
+                    )
+                except Exception as e:
+                    _LOGGER.error("IR action %s 失败: %s", action_name, e)
+
+            asyncio.create_task(_do_action())
+
+        char.setter_callback = remote_key_setter
+
     # ── 值转换 ──────────────────────────────────────
 
     @staticmethod
@@ -291,6 +418,9 @@ class MiotAccessory(Accessory):
         elif prop_kind == "target_temp":
             # HomeKit: 摄氏度 → miot
             return value
+        elif prop_kind == "volume":
+            # HomeKit: 0–100 → miot: 0–100
+            return max(0, min(100, int(value)))
         # on/off bool 直接透传
         return value
 
@@ -299,7 +429,7 @@ class MiotAccessory(Accessory):
         """miot 值 → HomeKit 值。"""
         if value is None:
             return None
-        if prop_kind in ("brightness", "speed", "position"):
+        if prop_kind in ("brightness", "speed", "position", "volume"):
             try:
                 return max(0, min(100, int(value)))
             except (TypeError, ValueError):
@@ -366,6 +496,10 @@ class MiotAccessory(Accessory):
             sensor_props.append(("temperature", self._map.temperature_siid, self._map.temperature_piid))
         if self._map.humidity_siid is not None and self._map.humidity_piid is not None:
             sensor_props.append(("humidity", self._map.humidity_siid, self._map.humidity_piid))
+        if self._map.volume_siid is not None and self._map.volume_piid is not None:
+            sensor_props.append(("volume", self._map.volume_siid, self._map.volume_piid))
+        if self._map.mute_siid is not None and self._map.mute_piid is not None:
+            sensor_props.append(("mute", self._map.mute_siid, self._map.mute_piid))
 
         for prop_kind, siid, piid in sensor_props:
             try:
@@ -383,6 +517,17 @@ class MiotAccessory(Accessory):
                             if c:
                                 target_char = c
                                 break
+                    elif prop_kind == "volume":
+                        # 音量在 TelevisionSpeaker 额外服务 或 Speaker 主服务中
+                        target_char = svc.get_characteristic("Volume")
+                        if not target_char:
+                            for es in self._extra_services:
+                                c = es.get_characteristic("Volume")
+                                if c:
+                                    target_char = c
+                                    break
+                    elif prop_kind == "mute":
+                        target_char = svc.get_characteristic("Mute")
                     if target_char:
                         target_char.set_value(value, should_notify=False)
             except Exception as e:
@@ -393,6 +538,12 @@ class MiotAccessory(Accessory):
         return self._service_name in (
             "TemperatureSensor", "HumiditySensor",
             "MotionSensor", "ContactSensor",
+            "TelevisionSpeaker", "Speaker",
+        ) or (
+            # 电视 + 音响副服务需要轮询音量值
+            self._service_name == "Television"
+            and self._map.extra_services
+            and "TelevisionSpeaker" in self._map.extra_services
         )
 
     # ── 状态 ────────────────────────────────────────

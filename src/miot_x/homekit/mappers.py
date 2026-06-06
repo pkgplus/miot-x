@@ -50,6 +50,16 @@ class DeviceMapping:
     target_temp_piid: int | None = None
     mode_siid: int | None = None
     mode_piid: int | None = None
+    # 音量属性（只读）
+    volume_siid: int | None = None
+    volume_piid: int | None = None
+    # 静音属性
+    mute_siid: int | None = None
+    mute_piid: int | None = None
+    # IR 动作映射: {action_name: (siid, aiid)}
+    # action_name: power_on, power_off, volume_up, volume_down,
+    #   channel_up, channel_down, mute_on, mute_off, input_source
+    actions: dict[str, tuple[int, int]] | None = None
     # HomeKit category (see pyhap.const)
     category: int | None = None
 
@@ -164,9 +174,36 @@ _MODEL_MAP: dict[str, DeviceMapping] = {
     # ── 无线开关/移动开关 ──
     "lumi.sensor_switch": DeviceMapping(service_name="Switch"),
     # ── 红外遥控虚拟设备 ──
-    "miir.tv": DeviceMapping(service_name="Television"),
+    "miir.tv": DeviceMapping(
+        service_name="Television",
+        extra_services=["TelevisionSpeaker"],
+        volume_siid=2, volume_piid=1,
+        actions={
+            "power_on": (2, 5),
+            "power_off": (2, 6),
+            "volume_up": (2, 4),
+            "volume_down": (2, 3),
+            "channel_up": (2, 2),
+            "channel_down": (2, 1),
+            "mute_on": (2, 7),
+            "mute_off": (2, 8),
+            "input_source": (2, 9),
+        },
+    ),
     # ── 扫地机器人 ──
     "rockrobo.vacuum": DeviceMapping(service_name="Switch"),
+    # ── 音箱 ──
+    # Speaker 服务（HAP 113）：Mute + Active(手动添加)+ Volume
+    # category=CATEGORY_SPEAKER(26) 让家庭 App 显示为音箱图标
+    "xiaomi.wifispeaker": DeviceMapping(
+        service_name="Speaker",
+        volume_siid=2, volume_piid=2,
+        mute_siid=2, mute_piid=3,
+    ),
+    # ── 门铃 ──
+    # StatelessProgrammableSwitch 的 ProgrammableSwitchEvent 初始化阶段无法设值，
+    # iOS 拒绝 value=None 的配件 → 改用 ContactSensor
+    "madv.cateye": DeviceMapping(service_name="ContactSensor"),
 }
 
 

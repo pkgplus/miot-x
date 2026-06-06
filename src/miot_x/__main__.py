@@ -2,7 +2,7 @@
 """miot-x — 小米米家智能家居控制工具。
 
 用法:
-    python -m miot_x                   # 默认 stdio 模式
+    python -m miot_x                   # 默认 serve 模式 (Web UI + MCP + HomeKit)
     python -m miot_x --http-port 8300  # HTTP MCP server
     python -m miot_x --xiaozhi         # 小智 WebSocket 桥接
     python -m miot_x --http-port 8300 --xiaozhi  # 全部启用
@@ -213,6 +213,7 @@ CLI_COMMANDS = {"devices", "device", "on", "off", "toggle", "get", "set", "actio
 
 def main():
     enable_xiaozhi = False
+    enable_homekit = False
     http_port = 0
     http_host = "127.0.0.1"
     positional = []
@@ -223,6 +224,8 @@ def main():
         a = args[i]
         if a == "--xiaozhi":
             enable_xiaozhi = True
+        elif a == "--homekit":
+            enable_homekit = True
         elif a == "--http-port":
             i += 1
             if i < len(args):
@@ -235,7 +238,7 @@ def main():
             positional.append(a)
         i += 1
 
-    cmd = positional[0] if positional else "run"
+    cmd = positional[0] if positional else "serve"
 
     if cmd == "login":
         asyncio.run(login())
@@ -249,8 +252,10 @@ def main():
         from .web import create_app
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
         port = http_port or 8300
-        app = create_app(enable_xiaozhi=enable_xiaozhi)
+        app = create_app(enable_xiaozhi=enable_xiaozhi, enable_homekit=enable_homekit)
         print(f"🚀 miot-x Web 服务启动: http://{http_host}:{port}")
+        if enable_homekit:
+            print("🏠 HomeKit 桥接已启用 — 请用 iPhone 家庭 App 扫码配对")
         uvicorn.run(app, host=http_host, port=port, log_level="info")
     elif cmd in CLI_COMMANDS:
         from .cli import cli_main

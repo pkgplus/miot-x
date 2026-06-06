@@ -1,0 +1,18 @@
+[Unit]
+Description=miot-x — 小米米家智能家居控制 (Web UI + MCP + HomeKit)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi5
+WorkingDirectory=/home/pi5/src/miot-skill
+EnvironmentFile=/home/pi5/src/miot-skill/.env
+ExecStart=/usr/bin/python3 -m miot_x serve --xiaozhi --homekit --http-port 8300 --http-host 0.0.0.0
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

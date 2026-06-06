@@ -1,17 +1,18 @@
 # miot-x
 
-> 米家智能家居控制工具 — 内置小米官方 [miot_kit](https://github.com/XiaoMi/xiaomi-miloco) SDK，零外部 SDK 依赖，开箱即用。提供 MCP Server、CLI 命令、Agent Skill 及小智 WebSocket 桥接，**单进程搞定全部**，纯 Python，ARM64 可用，零 GPU 依赖。
+> 米家智能家居控制工具 — 内置小米官方 [miot_kit](https://github.com/XiaoMi/xiaomi-miloco) SDK，零外部 SDK 依赖，开箱即用。提供 MCP Server、CLI 命令、HomeKit 桥接、Agent Skill 及小智 WebSocket 桥接，**单进程搞定全部**，纯 Python，ARM64 可用，零 GPU 依赖。
 
 ## 特性
 
 - 🏠 **官方 SDK 直连** — 基于小米官方 miot_kit，复用 OAuth + AES 加密协议，稳定可靠
 - 📱 **终端扫码登录** — 运行即显示二维码，手机米家一扫授权，token 自动刷新
 - 🔧 **多种接入方式** — 默认 stdio、`--http-port` HTTP MCP、`--xiaozhi` WebSocket 桥接，可任意组合
+- 🍎 **HomeKit 桥接** — 米家设备一键导入 Apple 家庭 App，Siri 语音控制，控制中心遥控器
 - 🔍 **模糊匹配** — 设备/场景名称智能搜索，说「台灯」就能找到
 - 🌐 **小智内置桥接** — `--xiaozhi` 参数直接启用，无需额外进程，断线自动重连
 - 🤖 **Agent Skill** — 内置 MCP 和 CLI 两种 Skill，AI 开箱即用
 - 🐍 **全异步** — aiohttp 驱动，无同步阻塞，ARM64 / x64 通吃
-- ⚡ **单进程架构** — HTTP MCP + 小智桥接合二为一，不再需要 mcp_pipe 子进程
+- ⚡ **单进程架构** — HTTP MCP + 小智桥接 + HomeKit 合为一体，不再需要 mcp_pipe 子进程
 
 ## 快速开始
 
@@ -25,7 +26,7 @@ pip install -e .
 # 内置 miot_kit SDK (基于 XiaoMi/xiaomi-miloco v0.1.15 + bugfix)，无需额外安装
 ```
 
-### 3. 扫码登录
+### 2. 扫码登录
 
 ```bash
 python -m miot_x login
@@ -39,7 +40,7 @@ python -m miot_x login
 python -m miot_x homes
 ```
 
-### 4. 使用
+### 3. 使用
 
 ```bash
 # 测试连接
@@ -48,8 +49,8 @@ python -m miot_x test
 # 默认 stdio 模式（兼容旧版）
 python -m miot_x
 
-# 一体化模式：HTTP MCP（给 Hermes/Claude Code）+ 小智桥接
-python -m miot_x --http-port 8300 --xiaozhi
+# 一体化模式：HTTP MCP（给 Hermes/Claude Code）+ 小智桥接 + HomeKit
+python -m miot_x serve --xiaozhi --homekit --http-port 8300 --http-host 0.0.0.0
 
 # 仅 HTTP MCP
 python -m miot_x --http-port 8300
@@ -65,7 +66,8 @@ python -m miot_x --xiaozhi
 | (无参数) | stdio MCP Server | 兼容旧版，Claude Code 直连 |
 | `--http-port PORT` | HTTP MCP Server (streamable-http) | Hermes Agent 等 HTTP 客户端 |
 | `--xiaozhi` | 小智 WebSocket 桥接 | 小智平台远程控制 |
-| `--http-port PORT --xiaozhi` | **一体化模式（推荐）** | **单进程同时服务本地和小智** |
+| `--homekit` | HomeKit 桥接（端口 51828） | Apple 家庭 App / Siri 控制 |
+| `--http-port PORT --xiaozhi --homekit` | **一体化模式（推荐）** | **单进程同时服务全部** |
 
 ## MCP 工具
 
@@ -82,6 +84,46 @@ python -m miot_x --xiaozhi
 | `list_scenes` | 场景列表 |
 | `execute_scene` | 执行场景（名称模糊匹配） |
 | `get_service_status` | 服务连接状态 |
+
+## HomeKit 桥接
+
+基于 [HAP-python](https://github.com/ikalchev/HAP-python) v5，将米家设备暴露为 HomeKit 配件。
+
+### 启动与配对
+
+```bash
+python -m miot_x serve --homekit --http-host 0.0.0.0
+```
+
+启动后终端显示二维码，iPhone 打开「家庭」App → 右上角 + → 添加配件 → 扫描二维码。
+
+- **配对 PIN**: `123-45-678`
+- **桥接端口**: `51828`
+- **状态文件**: `~/.miot-x/homekit.state`
+
+### 设备映射
+
+| 米家设备类型 | HomeKit 服务 | 能力 |
+|---|---|---|
+| light (yeelink/philips/xiaomi/shhf/pmfbj) | Lightbulb | On/Off + Brightness + ColorTemperature |
+| switch / outlet | Switch / Outlet | On/Off |
+| fan (dmaker/zhimi) | Fan | On/Off + Speed |
+| curtain | WindowCovering | Position |
+| air-conditioner | HeaterCooler | On/Off + Temp + Mode |
+| air-purifier | AirPurifier | On/Off + Speed |
+| temp-humidity-sensor | TemperatureSensor + HumiditySensor | 只读（30s 轮询） |
+| motion-sensor | MotionSensor | 只读（30s 轮询） |
+| contact-sensor | ContactSensor | 只读（30s 轮询） |
+| lock (lumi/aqara/loock) | LockMechanism | Lock/Unlock |
+| vacuum (rockrobo) | Switch | Start/Stop |
+| **TV (miir.tv)** | **Television** | **On/Off + 控制中心遥控器部件** |
+
+### AID 稳定性
+
+配件 ID（AID）按设备绑定时间（`order_time`）排序分配，**纯函数计算，零状态文件**：
+- 重启服务 AID 不变 → 已配对设备不会「未响应」
+- 新增设备自动排末尾 → 不影响现有配件
+- 删除设备自动消失 → 空位保留，不重新分配
 
 ## CLI 命令
 
@@ -146,17 +188,16 @@ python -m miot_x status                     # 连接状态
 mcp_servers:
   miot:
     transport: streamable-http
-    url: http://127.0.0.1:8300
+    url: http://127.0.0.1:8300/mcp/
     timeout: 30
 ```
 
 配合 systemd 开机自启：
 
 ```bash
-# 复制 service 文件
-sudo cp miot-x-mcp.service /etc/systemd/system/
+sudo cp miot-x.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now miot-x-mcp.service
+sudo systemctl enable --now miot-x.service
 ```
 
 > 旧版 stdio 模式仍然支持，但会额外启动一个子进程。推荐升级到 HTTP 模式。
@@ -169,32 +210,32 @@ sudo systemctl enable --now miot-x-mcp.service
 # 设置小智 MCP 端点
 export MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=***
 
-# 启动（单进程：HTTP MCP + 小智桥接）
-python -m miot_x --http-port 8300 --xiaozhi
+# 启动（单进程：HTTP MCP + 小智桥接 + HomeKit）
+python -m miot_x serve --xiaozhi --homekit --http-port 8300 --http-host 0.0.0.0
 ```
 
 特性：
 - WebSocket 断线自动重连（指数退避，最大 10 分钟）
-- 与 HTTP MCP 共享同一进程，零额外开销
+- 与 HTTP MCP、HomeKit 共享同一进程，零额外开销
 - 兼容 `MCP_ENDPOINT` 和 `XIAOZHI_MCP_URL` 环境变量
 
-> ⚠️ `mcp_pipe.py` 已废弃，功能已集成到 `--xiaozhi` 参数中。如需独立桥接仍可使用。
+> ⚠️ `mcp_pipe.py` 已废弃，功能已集成到 `--xiaozhi` 参数中。
 
 ## 部署（systemd 开机自启）
 
 ```bash
 # 1. 创建 .env 文件
 cat > .env << EOF
-MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=你的token
+MCP_ENDPOINT=wss://api.xiaozhi.me/mcp/?token=***
 EOF
 
 # 2. 安装 service
-sudo cp miot-x-mcp.service /etc/systemd/system/
+sudo cp miot-x.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now miot-x-mcp.service
+sudo systemctl enable --now miot-x.service
 
 # 3. 验证
-systemctl status miot-x-mcp.service
+systemctl status miot-x.service
 ```
 
 ## 架构
@@ -202,18 +243,19 @@ systemctl status miot-x-mcp.service
 ```
                     ┌──────────────────┐
     Hermes ──HTTP──►│                  │
-                    │   miot_x     │──WS──► 小智平台
+                    │   miot_x         │──WS──► 小智平台
   Claude Code ──stdio──►  (单进程)     │
                     │                  │──HTTPS──► 小米 IoT 云
-                    └──────────────────┘
-                          │
-              ┌───────────┼───────────┐
-              ▼           ▼           ▼
-          proxy.py    auth.py    miot_kit
-         (设备控制)   (OAuth)   (小米SDK)
+         ┌──HAP──►  │                  │──mDNS──► iPhone 家庭 App
+         │          └──────────────────┘
+         │                │
+    HomeKit         ┌─────┼─────┐
+    配件映射         ▼     ▼     ▼
+               proxy.py  auth.py  miot_kit
+              (设备控制) (OAuth)  (小米SDK)
 ```
 
-单进程架构：HTTP MCP、小智 WebSocket 桥接、设备控制全部在同一个进程中运行。
+单进程架构：HTTP MCP、小智 WebSocket 桥接、HomeKit 桥接、设备控制全部在同一个进程中运行。
 
 ## 项目结构
 
@@ -229,6 +271,12 @@ miot-x/
 │   │   ├── mcp/              #   MCP 协议层
 │   │   │   ├── server.py     #     FastMCP 工具注册 + stdio/HTTP
 │   │   │   └── xiaozhi.py    #     小智 WebSocket 桥接
+│   │   ├── homekit/          #   HomeKit 桥接
+│   │   │   ├── bridge.py     #     Bridge 生命周期 + AID 管理
+│   │   │   ├── mappers.py    #     设备类型 → HomeKit 服务映射
+│   │   │   └── accessory.py  #     miot 设备 → HAP 配件包装
+│   │   ├── web/              #   Web UI + API
+│   │   │   └── app.py        #     Starlette 应用（lifespan 启动 HomeKit）
 │   │   └── cli/              #   CLI 命令层
 │   │       └── commands.py   #     所有子命令实现
 │   └── miot/                 # 小米官方 miot_kit SDK (内置)
@@ -239,8 +287,7 @@ miot-x/
 ├── skills/                   # Agent Skills
 │   ├── miot-mcp/             #   MCP 版 Skill
 │   └── miot-cli/             #   CLI 版 Skill
-├── mcp_config.json           # MCP Server 配置
-├── miot-x-mcp.service        # systemd service 文件
+├── miot-x.service            # systemd service 文件
 └── pyproject.toml
 ```
 

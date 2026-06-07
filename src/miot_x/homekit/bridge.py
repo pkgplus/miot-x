@@ -208,7 +208,7 @@ class MiotHomeKitBridge:
         """将 Television 设备作为独立 HAP 配件发布（非 Bridge 子配件）。"""
         loop = asyncio.get_running_loop()
         persist = str(Path(self._persist_path).parent / f"homekit_tv_{dev.did}.state")
-        pin = "111-22-333"  # TV 独立配对码
+        pin = "876-54-321"  # TV 独立配对码
 
         tv_driver = AccessoryDriver(
             persist_file=persist,

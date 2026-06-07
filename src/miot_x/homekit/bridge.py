@@ -58,6 +58,8 @@ class MiotHomeKitBridge:
         self._bridge: Optional[Bridge] = None
         self._accessories: list[MiotAccessory] = []
         self._paired = False
+        # 独立 TV 配件（Television 必须 non-bridged）
+        self._tv_drivers: list[AccessoryDriver] = []
         self._qr_url: Optional[str] = None
 
         # 配对状态回调
@@ -126,6 +128,8 @@ class MiotHomeKitBridge:
         _LOGGER.info("🛑 停止 HomeKit 桥接...")
         for acc in self._accessories:
             await acc.stop_polling()
+        for tv_drv in self._tv_drivers:
+            tv_drv.stop()
         if self._driver:
             self._driver.stop()
         _LOGGER.info("HomeKit 桥接已停止")
@@ -147,12 +151,21 @@ class MiotHomeKitBridge:
             devices.items(),
             key=lambda x: (getattr(x[1], 'order_time', 0), x[0])
         )
+        tv_port = self._hap_port + 1  # TV 独立端口从 bridge port + 1 开始
+
         for did, dev in sorted_devices:
             try:
                 mapping = get_mapping(dev.model)
                 if not mapping:
                     skipped += 1
                     _LOGGER.debug("跳过未映射设备: %s (%s)", dev.name, dev.model)
+                    continue
+
+                # Television 必须作为独立配件（Apple 要求）
+                if mapping.service_name == "Television":
+                    await self._add_standalone_tv(dev, mapping, tv_port)
+                    tv_port += 1
+                    added += 1
                     continue
 
                 # 多通道设备：每个通道创建独立配件
@@ -189,7 +202,31 @@ class MiotHomeKitBridge:
                 _LOGGER.warning("添加设备 %s 失败: %s", dev.name, e)
                 skipped += 1
 
-        _LOGGER.info("设备映射: %d 已添加, %d 跳过", added, skipped)
+        _LOGGER.info("设备映射: %d 已添加, %d 跳过, %d 独立TV", added, skipped, len(self._tv_drivers))
+
+    async def _add_standalone_tv(self, dev, mapping, port: int):
+        """将 Television 设备作为独立 HAP 配件发布（非 Bridge 子配件）。"""
+        loop = asyncio.get_running_loop()
+        persist = str(Path(self._persist_path).parent / f"homekit_tv_{dev.did}.state")
+        pin = "111-22-333"  # TV 独立配对码
+
+        tv_driver = AccessoryDriver(
+            persist_file=persist,
+            pincode=pin.encode(),
+            port=port,
+            loop=loop,
+        )
+
+        tv_acc = MiotAccessory(tv_driver, self._proxy, dev, mapping=mapping)
+        tv_driver.add_accessory(tv_acc)
+        self._accessories.append(tv_acc)
+
+        try:
+            await tv_driver.async_start()
+            self._tv_drivers.append(tv_driver)
+            _LOGGER.info("📺 独立 TV 配件已启动: %s (端口 %d, PIN %s)", dev.name, port, pin)
+        except Exception as e:
+            _LOGGER.error("TV 独立配件启动失败: %s", e)
 
     # ── 配对状态 ────────────────────────────────────
 

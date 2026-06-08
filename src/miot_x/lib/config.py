@@ -4,8 +4,18 @@ import json
 import os
 from pathlib import Path
 
-# 缓存目录
-CACHE_DIR = Path(os.getenv("MIOT_CACHE_DIR", os.path.expanduser("~/.miot-x")))
+# 缓存目录 — sudo 运行时使用原始用户的 home 目录
+def _get_default_cache_dir() -> str:
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user:
+        import pwd
+        try:
+            return os.path.join(pwd.getpwnam(sudo_user).pw_dir, ".miot-x")
+        except KeyError:
+            pass
+    return os.path.expanduser("~/.miot-x")
+
+CACHE_DIR = Path(os.getenv("MIOT_CACHE_DIR", _get_default_cache_dir()))
 # Token + 家庭选择持久化文件
 AUTH_FILE = CACHE_DIR / "auth.json"
 # 设备/场景缓存

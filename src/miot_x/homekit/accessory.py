@@ -132,20 +132,26 @@ class MiotAccessory(Accessory):
             if char:
                 self._bind_char(char, "target_temp")
 
-        # 电视遥控器 RemoteKey（IR 设备）
-        if self._service_name == "Television" and self._map.actions:
-            rk = self._add_opt_char(svc, "RemoteKey")
-            if rk:
-                self._bind_remote_key(rk)
-
-        # 电视 InputSource（iOS 要求至少一个输入源才显示遥控器界面）
+        # Television 专属初始化
         if self._service_name == "Television":
+            # 设置必须的初始值（iOS 要求非 None，否则报"失去连接"）
+            svc.configure_char("Active", value=0)
+            svc.configure_char("ActiveIdentifier", value=1)
+            svc.configure_char("SleepDiscoveryMode", value=1)  # Always Discoverable
+            svc.configure_char("ConfiguredName", value=self.display_name)
+
+            # RemoteKey（遥控器按键）
+            if self._map.actions:
+                rk = self._add_opt_char(svc, "RemoteKey")
+                if rk:
+                    self._bind_remote_key(rk)
+
+            # InputSource（iOS 要求至少一个输入源才显示遥控器）
             input_svc = self.add_preload_service("InputSource")
-            input_svc.configure_char("ConfiguredName", value=self.display_name)
-            input_svc.configure_char("InputSourceType", value=0)  # Other
+            input_svc.configure_char("ConfiguredName", value="HDMI 1")
+            input_svc.configure_char("InputSourceType", value=3)  # HDMI
             input_svc.configure_char("IsConfigured", value=1)  # Configured
             input_svc.configure_char("CurrentVisibilityState", value=0)  # Shown
-            # Identifier 在 HAP 规范中是必须的，但 pyhap 标记为 optional
             ident = self._add_opt_char(input_svc, "Identifier")
             if ident:
                 ident.set_value(1, should_notify=False)
